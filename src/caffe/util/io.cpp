@@ -243,5 +243,30 @@ void CVMatToDatum(const cv::Mat& cv_img, Datum* datum) {
   }
   datum->set_data(buffer);
 }
+
+cv::Mat DatumToCVMat(const Datum& datum)
+{
+	int datum_channels = datum.channels();
+	int datum_height = datum.height();
+	int datum_width = datum.width();
+	cv::Mat cv_img;
+	cv_img.create(datum_height, datum_width, CV_8UC(datum_channels));
+
+	const string& data = datum.data();
+	std::vector<char> vec_data(data.c_str(), data.c_str() + data.size());
+	
+	for (int h = 0; h < datum_height; ++h) {
+		uchar* ptr = cv_img.ptr<uchar>(h);
+		int img_index = 0;
+		for (int w = 0; w < datum_width; ++w) {
+			for (int c = 0; c < datum_channels; ++c) {
+				int datum_index = (c * datum_height + h) * datum_width + w;
+				ptr[img_index++] = static_cast<uchar>(vec_data[datum_index]);
+			}
+		}
+	}
+
+	return cv_img;
+}
 #endif  // USE_OPENCV
 }  // namespace caffe
