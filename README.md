@@ -130,3 +130,69 @@ The previous windows build based on Visual Studio project files is now deprecate
 ## Further Details
 
 Refer to the BVLC/caffe master branch README for all other details such as license, citation, and so on.
+
+
+## DATA AUGUMENTATION 
+
+DATA AUGUMENTATION  을 추가합니다.
+사용은 아래의 예처럼 쓰면되는데, 주의 할 점은 기존에는 crop_size에 값을 입력할 경우, ramdomly crop을 하게 되는데
+변경된 코드에서는 crop_offset_rand를 true로 해줘야 합니다.
+
+```
+layer {
+  name: "train-data"
+  type: "Data"
+  top: "data"
+  top: "label"
+  include {
+    phase: TRAIN
+  }
+  transform_param {
+  mirror: true
+  flip_hor: true
+  crop_size: 540
+  crop_offset_rand: true
+  mean_file: "CAR_DISTANCE/train.binaryproto"
+  contrast_adjustment: true
+  smooth_filtering: true
+  jpeg_compression: true
+  rotation_angle_interval: 0
+  display: false
+  }
+  data_param {
+    source: "CAR_DISTANCE/Train_out/"
+    batch_size: 10
+    backend: LMDB
+  }
+}
+layer {
+  name: "val-data"
+  type: "Data"
+  top: "data"
+  top: "label"
+  include {
+    phase: TEST
+  }
+  transform_param {
+    mirror: true
+    flip_hor: true
+    crop_size: 540
+	crop_offset_rand: true
+    mean_file: "CAR_DISTANCE/validation.binaryproto"
+	contrast_adjustment: true
+    smooth_filtering: true
+    jpeg_compression: true
+	rotation_angle_interval: 0
+    display: false
+  }
+  data_param {
+    source: "CAR_DISTANCE/Validation_out/"
+    batch_size: 10
+    backend: LMDB
+  }
+}
+```
+lmdb type 및 image data tpye 모두 가능합니다.
+train phase, test phase 모두 가능합니다.
+@kevinlin311tw/caffe-augmentation  를 기반으로 만들었습니다.
+Thank you for your inspiration!
