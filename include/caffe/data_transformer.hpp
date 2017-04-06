@@ -97,6 +97,15 @@ class DataTransformer {
    * @param datum
    *    Datum containing the data to be transformed.
    */
+  void CopyBlob(Blob<Dtype>* source_blob, Blob<Dtype>* target_blob);
+
+  /**
+  * @brief Infers the shape of transformed_blob will have when
+  *    the transformation is applied to the data.
+  *
+  * @param datum
+  *    Datum containing the data to be transformed.
+  */
   vector<int> InferBlobShape(const Datum& datum);
   /**
    * @brief Infers the shape of transformed_blob will have when
