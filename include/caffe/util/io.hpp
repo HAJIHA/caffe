@@ -115,6 +115,9 @@ inline bool ReadFileToDatum(const string& filename, Datum* datum) {
   return ReadFileToDatum(filename, -1, datum);
 }
 
+bool ReadImageToDatum(const vector<string> vFile, const int label,
+	const int height, const int width, Datum* datum);
+
 bool ReadImageToDatum(const string& filename, const int label,
     const int height, const int width, const bool is_color,
     const std::string & encoding, Datum* datum);
@@ -164,6 +167,7 @@ cv::Mat DecodeDatumToCVMatNative(const Datum& datum);
 cv::Mat DecodeDatumToCVMat(const Datum& datum, bool is_color);
 
 void CVMatToDatum(const cv::Mat& cv_img, Datum* datum);
+void CVMatToDatum(const cv::Mat& cv_img, Datum* datum, int depth);
 cv::Mat DatumToCVMat(const Datum& datum);
 #endif  // USE_OPENCV
 

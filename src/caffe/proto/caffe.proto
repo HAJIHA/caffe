@@ -454,6 +454,9 @@ message TransformationParameter {
   optional int32 rand_omit_offset = 23 [default = 10];
   optional bool use_pre_resize = 24 [default = false];
   optional float max_perspective_ratio = 25 [default = 1.0];
+  optional float max_color_jitter = 26 [default = 0.0];
+  optional float max_pre_zoom = 27 [default = 1.0];
+  optional float max_distortion = 28 [default = 0.0];
 }
 
 // Message that stores parameters shared by loss layers

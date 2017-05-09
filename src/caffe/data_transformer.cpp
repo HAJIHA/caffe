@@ -1,8 +1,6 @@
 #ifdef USE_OPENCV
-#include <opencv2/core/core.hpp>
-#include <opencv2/core/mat.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2\opencv.hpp>
+using namespace cv;
 #endif  // USE_OPENCV
 
 #include <string>
@@ -243,8 +241,14 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
 	Blob<Dtype>* transformed_blob) {
 
 	const bool display = param_.display();
+	cv::Mat dispImg;
 	if (display)
-		cv::imshow("orgin", img);
+	{
+		cv::Mat disp_origin;
+		cv::resize(img, disp_origin, img.size() / 10);
+		cv::imshow("orgin", disp_origin);
+	}
+	
 	cv::Mat cv_img;
 	//img.copyTo(cv_img);
 	cv::Mat pre_img = img;
@@ -253,13 +257,109 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
 	if (transpose_for_unify_hor)
 	{
 		if (pre_img.cols < pre_img.rows)
+		{
 			cv::transpose(pre_img, pre_img);
+			cv::flip(pre_img, pre_img, 1);
+			if (display)
+			{
+				cv::Mat disp_origin;
+				cv::resize(pre_img, disp_origin, pre_img.size() / 10);
+				cv::imshow("transpose_for_unify_hor", disp_origin);
+			}
+		}
 	}
+
+	// distortion - pre resize
+	const float max_distortion = param_.max_distortion();
+	int rIndex = Rand(0X0FFFFFFF);
+	cv::RNG rng = cv::RNG(rIndex);
+	float fDist = rng.uniform(float(max_distortion*-1.0), max_distortion);
+
+	cv::Mat intrinsic = cv::Mat(3, 3, CV_32FC1);
+	cv::Mat distCoeffs = cv::Mat(1, 5, CV_32FC1);
+	cv::Mat distImg;
+	float fDistratio = 1.0 / (pre_img.cols*pre_img.rows);
+	intrinsic.ptr<float>(0)[0] = 1;
+	intrinsic.ptr<float>(0)[1] = 0;
+	intrinsic.ptr<float>(0)[2] = pre_img.cols / 2;
+	intrinsic.ptr<float>(1)[0] = 0;
+	intrinsic.ptr<float>(1)[1] = 1;
+	intrinsic.ptr<float>(1)[2] = pre_img.rows / 2;
+	intrinsic.ptr<float>(2)[0] = 0;
+	intrinsic.ptr<float>(2)[1] = 0;
+	intrinsic.ptr<float>(2)[2] = 1;
+	distCoeffs.ptr<float>(0)[0] = fDistratio * fDist;
+	distCoeffs.ptr<float>(0)[1] = 0;//fix
+	distCoeffs.ptr<float>(0)[2] = 0;//fix
+	distCoeffs.ptr<float>(0)[3] = 0;//fix
+	distCoeffs.ptr<float>(0)[4] = 0;//fix
+	
+	if (fDist != 0.0)
+	{
+		cv::undistort(pre_img, distImg, intrinsic, distCoeffs);
+		distImg.copyTo(pre_img);
+		if (display)
+		{
+			cv::resize(pre_img, dispImg, pre_img.size() /10 );
+			cv::imshow("distort image", dispImg);
+		}
+	}
+
+	rIndex = Rand(0X0FFFFFFF);
+	rng = cv::RNG(rIndex);;
 
 	const bool use_pre_resize = param_.use_pre_resize();
 	const int rand_omit_offset = param_.rand_omit_offset();
 	const int pre_resize_width = param_.pre_resize_width();
 	const int pre_resize_height = param_.pre_resize_height();
+
+
+
+	// mean normalized
+	//Dtype* mean = NULL;
+	//if (has_mean_file) {
+	//	CHECK_EQ(img_channels, data_mean_.channels());
+	//	CHECK_EQ(img_height, data_mean_.height());
+	//	CHECK_EQ(img_width, data_mean_.width());
+	//	mean = data_mean_.mutable_cpu_data();
+	//}
+
+	//if (has_mean_values) {
+	//	CHECK(mean_values_.size() == 1 || mean_values_.size() == img_channels) <<
+	//		"Specify either 1 mean_value or as many as channels: " << img_channels;
+	//	if (img_channels > 1 && mean_values_.size() == 1) {
+	//		// Replicate the mean_value for simplicity
+	//		for (int c = 1; c < img_channels; ++c) {
+	//			mean_values_.push_back(mean_values_[0]);
+	//		}
+	//	}
+	//}
+
+	/* The format of the mean file is planar 32-bit float BGR or grayscale. */
+	std::vector<cv::Mat> vecMean;
+	Dtype* data = data_mean_.mutable_cpu_data();
+	for (int i = 0; i < img.channels(); ++i) {
+		/* Extract an individual channel. */
+		cv::Mat c1mean(data_mean_.height(), data_mean_.width(), CV_32FC1, data);
+		vecMean.push_back(c1mean);
+		data += data_mean_.height() * data_mean_.width();
+	}
+
+	/* Merge the separate channels into a single image. */
+	cv::Mat meanImg;
+	cv::merge(vecMean, meanImg);
+	cv::resize(meanImg, meanImg, cv::Size(pre_resize_width, pre_resize_height));
+	if (display)
+	{
+		cv::resize(meanImg, meanImg, meanImg.size());
+		meanImg.convertTo(dispImg, CV_8UC3);
+		cv::imshow("mean", dispImg);
+	}
+
+	const float max_pre_zoom = param_.max_pre_zoom();
+
+
+	float fzoom = rng.uniform(float(1.0), max_pre_zoom);
 
 	if (use_pre_resize)
 	{
@@ -289,9 +389,21 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
 				pre_roi = cv::Rect(0, 0, pre_img.cols - omit_rand, pre_img.rows);
 			}
 
-			cv::Mat cv_resize_img = pre_img(pre_roi);
+			cv::Mat pre_roi_img = pre_img(pre_roi);
+			cv::Rect pre_zoom_roi;
+			cv::Size pre_roi_size;
+			pre_roi_size.width = pre_roi_img.cols / fzoom;
+			pre_roi_size.height = pre_roi_img.rows / fzoom;
+			pre_zoom_roi.x = (pre_roi_img.cols - pre_roi_size.width) / 2;
+			pre_zoom_roi.y = (pre_roi_img.rows - pre_roi_size.height) / 2;
+			pre_zoom_roi.width = pre_roi_size.width;
+			pre_zoom_roi.height = pre_roi_size.height;
+			
+			cv::Mat pre_zoom_img = pre_roi_img(pre_zoom_roi);
+			
+			//cv::Mat cv_resize_img = pre_img(pre_roi);
 			const int method = Rand(4);
-			cv::resize(cv_resize_img, cv_img, cv::Size(pre_resize_width, pre_resize_height));
+			cv::resize(pre_zoom_img, cv_img, cv::Size(pre_resize_width, pre_resize_height),method);
 			if (display)
 				cv::imshow("PreResize", cv_img);
 		}
@@ -301,7 +413,6 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
 		cv_img = img;
 		//img.copyTo(cv_img);
 	}
-
 
 	// transform
 	const int crop_size = param_.crop_size();
@@ -337,8 +448,7 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
 	CHECK_GE(img_height, crop_size);
 	CHECK_GE(img_width, crop_size);
 
-	int rIndex = Rand(0X0FFFFFFF);
-	cv::RNG rng(rIndex);
+
 	
 	// param for rotation
 	const float rotation_angle_interval = param_.rotation_angle_interval();
@@ -346,11 +456,8 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
 	const float min_scaling_factor = param_.min_scaling_factor();
 	const float max_scaling_factor = param_.max_scaling_factor();
 	bool bScale = false;
-	if (min_scaling_factor<1.0 && max_scaling_factor > 1.0)
+	if (min_scaling_factor != 1.0 || max_scaling_factor != 1.0)
 		bScale = true;
-
-	if (display)
-		cv::imshow("Source", cv_img);
 
 	// scaling factor for height and width respectively
 	rIndex = Rand(0X0FFFFFFF);
@@ -366,9 +473,8 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
 	if (heightNew < crop_size)
 		heightNew = crop_size;
 
-
 	bool doScale = Rand(2) && bScale;
-	if (doScale)
+   	if (doScale)
 	{
 		cv::resize(cv_img, cv_img, cv::Size(widthNew, heightNew));
 	}
@@ -407,7 +513,7 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
 	int mean_h_off = 0;
 	int mean_w_off = 0;
 
-	if (crop_size!= imgHeightIn || crop_size!= imgHeightIn)
+	if (crop_size!= imgHeightIn || crop_size!= imgWidthIn)
 	{
 		CHECK_EQ(crop_size, height);
 		CHECK_EQ(crop_size, width);
@@ -432,10 +538,15 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
 		}
 		cv::Rect roi(w_off, h_off, crop_size, crop_size);
 		cv_img = cv_img(roi);
+		meanImg = meanImg(roi);
 
 		if (display)
+		{
 			cv::imshow("Cropping", cv_img);
 
+			meanImg.convertTo(dispImg, CV_8UC3);
+			cv::imshow("Cropping Mean", dispImg);
+		}
 		//cv_cropped_img.copyTo(cv_img);
 	}
 	else 
@@ -512,7 +623,7 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
 			if (display)
 			{
 				cv::imshow("Rotation", dst);
-				cv::waitKey(0);
+				//cv::waitKey(0);
 			}
 			dst.copyTo(cv_img);
 		}
@@ -560,6 +671,42 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
 			cv::imshow("Contrast Adjustment", cv_img);
 	}
 
+	// change saturation ----------------------------------------
+	// To change saturation, we need to convert the image to HSV format first,
+	// the change S channgel and convert the image back to BGR format.
+	float fMaxColorJitter = param_.max_color_jitter();
+
+	if (fMaxColorJitter != 0.0 && cv_img.channels() == 3)
+	{
+		rIndex = Rand(0X0FFFFFFF);
+		rng = cv::RNG(rIndex);
+		float fHueJitter = rng.uniform(-fMaxColorJitter, fMaxColorJitter);
+		double hratio = 1.0 + fHueJitter;
+
+		rIndex = Rand(0X0FFFFFFF);
+		rng = cv::RNG(rIndex);
+		float fSJitter = rng.uniform(-fMaxColorJitter, fMaxColorJitter);
+		double sratio = 1.0 + fSJitter;
+
+		assert(0 <= hratio && hratio <= 2);
+		assert(0 <= sratio && sratio <= 2);
+
+		cv::Mat hsv;
+		cv::cvtColor(cv_img, hsv, CV_BGR2HSV);
+		size_t count = hsv.rows * hsv.cols * cv_img.channels();
+		unsigned char* phsvBase = reinterpret_cast<unsigned char*>(hsv.data);
+		for (unsigned char* phsv = phsvBase; phsv < phsvBase + count; phsv += 3)
+		{
+			const int hueidx = 0;
+			phsv[hueidx] = (unsigned char)(std::min((hratio*phsv[hueidx]), 255.0));//(char)(phsv[HsvIndex] * ratio);// 
+			const int sidx = 1;
+			phsv[sidx] = (unsigned char)(std::min((sratio*phsv[sidx]), 255.0));
+		}
+		cv::cvtColor(hsv, cv_img, CV_HSV2BGR);
+		if (display)
+			cv::imshow("Color Jittering", cv_img);
+	}
+
 	// JPEG Compression -------------------------------------------------------------
 	// DO NOT use the following code as there is some memory leak which I cann't figure out
 	int QF = 100;
@@ -579,7 +726,7 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
 	}
 
 	if (display)
-		cv::imshow("Final", cv_img);
+		cv::imshow("Final Pre Sub", cv_img);
 
 
 
@@ -613,60 +760,79 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
 		LOG(INFO) << "* parameter for rotation: ";
 		LOG(INFO) << "  angle_interval: " << rotation_angle_interval;
 		LOG(INFO) << "  angle: " << rotation_degree;
-		cvWaitKey(0);
 	}
 
-	Dtype* mean = NULL;
-	if (has_mean_file) {
-		CHECK_EQ(img_channels, data_mean_.channels());
-		CHECK_EQ(img_height, data_mean_.height());
-		CHECK_EQ(img_width, data_mean_.width());
-		mean = data_mean_.mutable_cpu_data();
-	}
+	//Dtype* mean = NULL;
+	//if (has_mean_file) {
+	//	CHECK_EQ(img_channels, data_mean_.channels());
+	//	CHECK_EQ(img_height, data_mean_.height());
+	//	CHECK_EQ(img_width, data_mean_.width());
+	//	mean = data_mean_.mutable_cpu_data();
+	//}
 
-	if (has_mean_values) {
-		CHECK(mean_values_.size() == 1 || mean_values_.size() == img_channels) <<
-			"Specify either 1 mean_value or as many as channels: " << img_channels;
-		if (img_channels > 1 && mean_values_.size() == 1) {
-			// Replicate the mean_value for simplicity
-			for (int c = 1; c < img_channels; ++c) {
-				mean_values_.push_back(mean_values_[0]);
-			}
-		}
+	//if (has_mean_values) {
+	//	CHECK(mean_values_.size() == 1 || mean_values_.size() == img_channels) <<
+	//		"Specify either 1 mean_value or as many as channels: " << img_channels;
+	//	if (img_channels > 1 && mean_values_.size() == 1) {
+	//		// Replicate the mean_value for simplicity
+	//		for (int c = 1; c < img_channels; ++c) {
+	//			mean_values_.push_back(mean_values_[0]);
+	//		}
+	//	}
+	//}
+
+	// mean substract
+	cv::Mat sample_float;
+	if (channels == 3)
+		cv_img.convertTo(sample_float, CV_32FC3);
+	else
+		cv_img.convertTo(sample_float, CV_32FC1);
+
+	cv::Mat sample_normalized;
+	if (has_mean_file) 
+	{
+		cv::subtract(sample_float, meanImg, sample_normalized);
+	}
+	else
+	{
+		sample_normalized = sample_float;
 	}
 
 	Dtype* transformed_data = transformed_blob->mutable_cpu_data();
 	int top_index;
-	for (int h = 0; h < height; ++h) {
-		const uchar* ptr = cv_img.ptr<uchar>(h); // here!!
+	for (int h = 0; h < height; ++h) 
+	{
+		const float* ptr = sample_normalized.ptr<float>(h); // here!!
 		int img_index = 0;
-		for (int w = 0; w < width; ++w) {
-			for (int c = 0; c < img_channels; ++c) {
-				//if (do_mirror) {
-				//  top_index = (c * height + h) * width + (width - 1 - w);
-				//} else {
+		for (int w = 0; w < width; ++w) 
+		{
+			for (int c = 0; c < img_channels; ++c) 
+			{
 				top_index = (c * height + h) * width + w;
-				//}
-				// int top_index = (c * height + h) * width + w;
 				Dtype pixel = static_cast<Dtype>(ptr[img_index++]);
-				if (has_mean_file) {
-					int mean_index = (c * img_height + h) * img_width + w;
-					transformed_data[top_index] =
-						(pixel - mean[mean_index]) * scale;
-				}
-				else {
-					if (has_mean_values) {
-						transformed_data[top_index] =
-							(pixel - mean_values_[c]) * scale;
-					}
-					else {
-						transformed_data[top_index] = pixel * scale;
-					}
-				}
+				transformed_data[top_index] = pixel * scale;
 			}
 		}
 	}
 
+	if (display)
+	{
+		std::vector<cv::Mat> InputDataCheck;
+		for (int i = 0; i < channels; ++i) {
+			/* Extract an individual channel. */
+			cv::Mat channel(height, width, CV_32FC1, transformed_data);
+			InputDataCheck.push_back(channel);
+			transformed_data += height * width;
+		}
+
+		/* Merge the separate channels into a single image. */
+		cv::Mat InputDataCheckImg;
+		cv::merge(InputDataCheck, InputDataCheckImg);
+
+		InputDataCheckImg.convertTo(dispImg, CV_8UC3);
+		cv::imshow("final data check", dispImg);
+		cvWaitKey(0);
+	}
 }
 #endif  // USE_OPENCV
 

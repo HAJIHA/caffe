@@ -112,3 +112,4 @@ MANIFEST-*
 *.opensdf
 *.pdb
 *.props
+*.tlog

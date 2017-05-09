@@ -82,9 +82,11 @@ void WriteProtoToBinaryFile(const Message& proto, const char* filename) {
 cv::Mat ReadImageToCVMat(const string& filename,
     const int height, const int width, const bool is_color) {
   cv::Mat cv_img;
-  int cv_read_flag = (is_color ? CV_LOAD_IMAGE_COLOR :
+  int cv_read_flag =  (is_color ? CV_LOAD_IMAGE_COLOR :
     CV_LOAD_IMAGE_GRAYSCALE);
   cv::Mat cv_img_origin = cv::imread(filename, cv_read_flag);
+  //int c = cv_img_origin.channels();
+  //int d = cv_img_origin.depth();
   if (!cv_img_origin.data) {
     LOG(ERROR) << "Could not open or find file " << filename;
     return cv_img_origin;
@@ -123,6 +125,32 @@ static bool matchExt(const std::string & fn,
   if ( en == "jpg" && ext == "jpeg" )
     return true;
   return false;
+}
+
+bool ReadImageToDatum(const vector<string> vFile, const int label,
+	const int height, const int width, Datum* datum)
+{
+	vector<cv::Mat> vImgMerge;
+	cv::Mat merge_img;
+	for (int i = 0; i < vFile.size(); i++)
+	{
+		vector<cv::Mat> vImgSplit;
+		cv::Mat cv_img = cv::imread(vFile[i], CV_LOAD_IMAGE_UNCHANGED);
+		if (height > 0 || width> 0 )
+			cv::resize(cv_img, cv_img, cv::Size(width, height));
+		cv::split(cv_img, vImgSplit);
+
+		for (int j = 0; j < vImgSplit.size(); j++)
+		{
+			cv::Mat fImg;
+			vImgSplit[j].convertTo(fImg, CV_32FC1);
+			vImgMerge.push_back(fImg);
+		}
+	}
+	cv::merge(vImgMerge, merge_img);
+	CVMatToDatum(merge_img, datum, merge_img.depth());
+	datum->set_label(label);
+	return true;
 }
 
 bool ReadImageToDatum(const string& filename, const int label,
@@ -216,6 +244,41 @@ bool DecodeDatum(Datum* datum, bool is_color) {
   } else {
     return false;
   }
+}
+
+void CVMatToDatum(const cv::Mat& cv_img, Datum* datum, int depth)
+{
+	if (depth == CV_8U)
+	{
+		CVMatToDatum(cv_img, datum);
+		return;
+	}
+
+	CHECK(cv_img.depth() == CV_32F) << "data type must be 32bit float";
+
+	datum->set_channels(cv_img.channels());
+	datum->set_height(cv_img.rows);
+	datum->set_width(cv_img.cols);
+	datum->clear_data();
+	datum->clear_float_data();
+	datum->set_encoded(false);
+	int datum_channels = datum->channels();
+	int datum_height = datum->height();
+	int datum_width = datum->width();
+	int datum_size = datum_channels * datum_height * datum_width;
+
+	for (int h = 0; h < datum_height; ++h) 
+	{
+		const float* ptr = cv_img.ptr<float>(h);
+		int img_index = 0;
+		for (int w = 0; w < datum_width; ++w) {
+			for (int c = 0; c < datum_channels; ++c) {
+				//int datum_index = (c * datum_height + h) * datum_width + w;
+				datum->add_float_data( ptr[img_index++]);
+			}
+		}
+	}
+	return;
 }
 
 void CVMatToDatum(const cv::Mat& cv_img, Datum* datum) {
