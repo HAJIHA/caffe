@@ -25,7 +25,6 @@ int main(int argc, char** argv)
 		return 0;
 	}
 
-
 	if (string(argv[1]) == "intel" )
 	{
 		string strModelRoot = argv[2];
@@ -35,29 +34,12 @@ int main(int argc, char** argv)
 		strImgRoot += "/";
 		string strTrainedPreFix = argv[5];
 
-		const int gpu_num = std::max<int>(0, FLAGS_gpu);
-		const int resize_height = std::max<int>(0, FLAGS_resize_height);
-		const int resize_width = std::max<int>(0, FLAGS_resize_width);
-
-		string strWidth;
-		string strHeight;
-		bool bFreeSize = false;
-		if (argc > 8)
-		{
-			strWidth = argv[7];
-			strHeight = argv[8];
-		}
-		else
-		{
-			bFreeSize = true;
-		}
-
 		string strModelFile = strTrainedPreFix + "*.caffemodel";
 		string strScoreFile = strTrainedPreFix + "*_PrdResult.csv";
 
-		int nGpu = gpu_num;
-		int nWidth = resize_width;
-		int nHeight = resize_height;
+		const int nGpu = std::max<int>(0, FLAGS_gpu);;
+		const int nWidth = std::max<int>(0, FLAGS_resize_width);
+		const int nHeight = std::max<int>(0, FLAGS_resize_height);
 		while (1)
 		{
 			_sleep(1000);
