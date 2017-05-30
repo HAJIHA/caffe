@@ -9,9 +9,7 @@ using namespace std;
 using namespace cv;
 
 DEFINE_int32(gpu, 0,
-	"Optional; run in GPU mode on given device IDs separated by ','."
-	"Use '-gpu all' to run on all available GPUs. The effective training "
-	"batch size is multiplied by the number of devices.");
+	"Optional; run in GPU mode on given device IDs separated by ");
 DEFINE_int32(resize_width, 0, "Width images are resized to");
 DEFINE_int32(resize_height, 0, "Height images are resized to");
 
