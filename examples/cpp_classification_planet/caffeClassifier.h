@@ -55,6 +55,7 @@ private:
 	vector< float >  PredictBatch(const vector< cv::Mat > imgs);
 	vector< float >  PredictBatchNonSub(const vector< cv::Mat > imgs);
     // num, channel, height, width
+    vector< vector< vector< vector< float > > > > PredictFcnBatch(const vector< cv::Mat > imgs);
 	void SetMean(const string& mean_file);
 
 private:

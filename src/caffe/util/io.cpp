@@ -128,7 +128,7 @@ static bool matchExt(const std::string & fn,
 }
 
 bool ReadImageToDatum(const vector<string> vFile, const int label,
-	const int height, const int width, Datum* datum)
+	const int height, const int width, const int channels, Datum* datum)
 {
 	vector<cv::Mat> vImgMerge;
 	cv::Mat merge_img;
@@ -147,6 +147,12 @@ bool ReadImageToDatum(const vector<string> vFile, const int label,
 			vImgMerge.push_back(fImg);
 		}
 	}
+	if (vImgMerge.size() != channels)
+	{
+		LOG(WARNING) << " Not equal channels  : first img path " << vFile[0];
+		return false;
+	}
+
 	cv::merge(vImgMerge, merge_img);
 	CVMatToDatum(merge_img, datum, merge_img.depth());
 	datum->set_label(label);
@@ -312,22 +318,43 @@ cv::Mat DatumToCVMat(const Datum& datum)
 	int datum_channels = datum.channels();
 	int datum_height = datum.height();
 	int datum_width = datum.width();
+
+	string strData = datum.data();
 	cv::Mat cv_img;
-	cv_img.create(datum_height, datum_width, CV_8UC(datum_channels));
+	if (strData.size() != 0)
+	{
+		cv_img.create(datum_height, datum_width, CV_8UC(datum_channels));
+		const string& data = datum.data();
+		std::vector<char> vec_data(data.c_str(), data.c_str() + data.size());
 
-	const string& data = datum.data();
-	std::vector<char> vec_data(data.c_str(), data.c_str() + data.size());
-
-	for (int h = 0; h < datum_height; ++h) {
-		uchar* ptr = cv_img.ptr<uchar>(h);
-		int img_index = 0;
-		for (int w = 0; w < datum_width; ++w) {
-			for (int c = 0; c < datum_channels; ++c) {
-				int datum_index = (c * datum_height + h) * datum_width + w;
-				ptr[img_index++] = static_cast<uchar>(vec_data[datum_index]);
+		for (int h = 0; h < datum_height; ++h) {
+			uchar* ptr = cv_img.ptr<uchar>(h);
+			int img_index = 0;
+			for (int w = 0; w < datum_width; ++w) {
+				for (int c = 0; c < datum_channels; ++c) {
+					int datum_index = (c * datum_height + h) * datum_width + w;
+					ptr[img_index++] = static_cast<uchar>(vec_data[datum_index]);
+				}
 			}
 		}
 	}
+	else
+	{
+		cv_img.create(datum_height, datum_width, CV_32FC(datum_channels));
+		for (int h = 0; h < datum_height; ++h) {
+			float* ptr = cv_img.ptr<float>(h);
+			int img_index = 0;
+			for (int w = 0; w < datum_width; ++w) {
+				for (int c = 0; c < datum_channels; ++c) {
+					int datum_index = (c * datum_height + h) * datum_width + w;
+					ptr[img_index++] = static_cast<float>(datum.float_data(datum_index));
+				}
+			}
+		}
+	}
+	
+
+
 
 	return cv_img;
 }

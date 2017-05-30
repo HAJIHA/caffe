@@ -116,7 +116,7 @@ inline bool ReadFileToDatum(const string& filename, Datum* datum) {
 }
 
 bool ReadImageToDatum(const vector<string> vFile, const int label,
-	const int height, const int width, Datum* datum);
+	const int height, const int width, const int channels, Datum* datum);
 
 bool ReadImageToDatum(const string& filename, const int label,
     const int height, const int width, const bool is_color,

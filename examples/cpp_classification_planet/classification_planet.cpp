@@ -1,32 +1,26 @@
 #include "CaffeClassifier.h"
-#include "ManageDirectory.h"
-#include "StringParse.h"
+#include "../cpp_classification_cervical_cancer/ManageDirectory.h"
+#include "../cpp_classification_cervical_cancer/StringParse.h"
 #include "ValidateModel.h"
 #include <omp.h>
-#include "ConvertString.h"
+#include "../cpp_classification_cervical_cancer/ConvertString.h"
 
 using namespace std;
 using namespace cv;
-
-DEFINE_int32(gpu, 0,
-	"Optional; run in GPU mode on given device IDs separated by ','."
-	"Use '-gpu all' to run on all available GPUs. The effective training "
-	"batch size is multiplied by the number of devices.");
-DEFINE_int32(resize_width, 0, "Width images are resized to");
-DEFINE_int32(resize_height, 0, "Height images are resized to");
 
 int main(int argc, char** argv)
 {
 	if (argc < 3)
 	{
-		printf("arg number error\n");
-		printf("intel modelroot testlistfile imgRoot TrainedFilePrefix\n");
+		printf("필요한 인자가 부족합니다.\n");
+		printf("1.모델 score계산 : CalScore modelroot testlistfile imgRoot TrainedFilePrefix 사용gpu MultiNum nWidth nHeight\n");
+		printf("2.불량분류 : classifyListDir ResultOutDir 사용gpu");
 		getchar();
 		return 0;
 	}
 
 
-	if (string(argv[1]) == "intel" )
+	if (string(argv[1]) == "planet" )
 	{
 		string strModelRoot = argv[2];
 		strModelRoot += "/";
@@ -34,30 +28,16 @@ int main(int argc, char** argv)
 		string strImgRoot = argv[4];
 		strImgRoot += "/";
 		string strTrainedPreFix = argv[5];
-
-		const int gpu_num = std::max<int>(0, FLAGS_gpu);
-		const int resize_height = std::max<int>(0, FLAGS_resize_height);
-		const int resize_width = std::max<int>(0, FLAGS_resize_width);
+		string strGpu = argv[6];
 
 		string strWidth;
 		string strHeight;
-		bool bFreeSize = false;
-		if (argc > 8)
-		{
-			strWidth = argv[7];
-			strHeight = argv[8];
-		}
-		else
-		{
-			bFreeSize = true;
-		}
-
 		string strModelFile = strTrainedPreFix + "*.caffemodel";
-		string strScoreFile = strTrainedPreFix + "*_PrdResult.csv";
+		string strScoreFile = strTrainedPreFix + "*_PrdResult.txt";
 
-		int nGpu = gpu_num;
-		int nWidth = resize_width;
-		int nHeight = resize_height;
+		int nGpu = atoi(strGpu.c_str());
+		int nWidth = atoi(strWidth.c_str());
+		int nHeight = atoi(strHeight.c_str());
 		while (1)
 		{
 			_sleep(1000);
@@ -72,7 +52,7 @@ int main(int argc, char** argv)
 
 			for (int i = 0; i < vStrIter.size(); i++)
 			{
-				string strTemp = vStrIter[i] + "_PrdResult.csv";
+				string strTemp = vStrIter[i] + "_PrdResult.txt";
 				bool bSkip = false;
 				for (int j = 0; j < vStrScoreFile.size(); j++)
 				{
@@ -87,7 +67,7 @@ int main(int argc, char** argv)
 				if (bSkip)
 					continue;
 
-				CValidateModel val(strModelRoot, vStrTrainedFile[i], strImgRoot, strTestListFile, nGpu, true, nWidth, nHeight);
+				CValidateModel val(strModelRoot, vStrTrainedFile[i], strImgRoot, strTestListFile, nGpu);
 			}
 		}
 		return 0;

@@ -5,12 +5,12 @@ using namespace std;
 class CValidateModel
 {
 public:
-  CValidateModel(string strModelRoot, string strTrainedFile, string strImgRoot, string strTestListFile, int gpuNum, bool bIntel, int pre_width, int pre_height);
+  CValidateModel(string strModelRoot, string strTrainedFile, string strImgRoot, string strTestListFile, int gpuNum);
     ~CValidateModel();
 
 private:
-  void InitModel(string strModelRoot, string strTrainedFile, string strImgRoot, string strTestListFile, int gpuNum, bool bIntel);
-  void testValidateSetIntel(int pre_width, int pre_height);
+  void InitModel(string strModelRoot, string strTrainedFile, string strImgRoot, string strTestListFile, int gpuNum);
+  void testValidateSet();
 
 	int m_nOverSample;
 	int m_nBatchSize;

@@ -1,37 +1,24 @@
 #include "caffeClassifier.h"
-#include "StringParse.h"
+#include "../cpp_classification_cervical_cancer/StringParse.h"
 #include "ValidateModel.h"
-#include "ManageDirectory.h"
+#include "../cpp_classification_cervical_cancer/ManageDirectory.h"
 
 
 
-void CValidateModel::InitModel(string strModelRoot, string strTrainedFile, string strImgRoot, string strTestListFile, int gpuNum, bool bIntel)
+void CValidateModel::InitModel(string strModelRoot, string strTrainedFile, string strImgRoot, string strTestListFile, int gpuNum)
 {
-  if (bIntel)
-  {
-    m_nBatchSize = 24;
-    m_nOverSample = 24;
-  }
-  else
-  {
     m_nBatchSize = 10;
     m_nOverSample = 10;
-  }
+
   string strRoot = CManageDirectory::checkNAddSlush(strModelRoot);
 
   m_trained_file = strRoot + strTrainedFile;
-  m_mean_file = strRoot + "validation_v3_premature.binaryproto";
+  m_mean_file = strRoot + "test.binaryproto";
   m_label_file = strRoot + "synset_words.txt";
-
-  ofstream labelFile(m_label_file, ios::out);
-  labelFile << "Type_1\n";
-  labelFile << "Type_2\n";
-  labelFile << "Type_3\n";
-
   m_ValidateListFile = strRoot + strTestListFile;
   vector<string> vTraindFile = CStringParse::splitString(strTrainedFile, '.');
   vector<string> vTrainedFileWord = CStringParse::splitString(vTraindFile[0], '_');
-  string strPredictResultFile = vTraindFile[0] + "_PrdResult.csv";
+  string strPredictResultFile = vTraindFile[0] + "_PrdResult.txt";
 
   bool bFcn = false;
   string strDeploy;
@@ -58,7 +45,7 @@ void CValidateModel::InitModel(string strModelRoot, string strTrainedFile, strin
 }
 
 
-void CValidateModel::testValidateSetIntel(int pre_width, int pre_height)
+void CValidateModel::testValidateSet()
 {
   std::ifstream inFile;
   inFile.open(m_ValidateListFile);
@@ -88,7 +75,7 @@ void CValidateModel::testValidateSetIntel(int pre_width, int pre_height)
     m_vValidateIntelList.push_back(OneSet);
   }
 
-  string strHeader = "image_name,Type_1,Type_2,Type_3";
+  string strHeader = "image_name,tags";
   ofstream outFile(m_strSavePredictResult, ios::out); 
   outFile << strHeader + "\n";
 
@@ -100,6 +87,7 @@ void CValidateModel::testValidateSetIntel(int pre_width, int pre_height)
     clock_t st;
     clock_t et;
     st = clock();
+	//여기서부터 휴가 복귀후 코딩
     m_vValidateIntelList[i].strPath = m_ImgRoot + m_vValidateIntelList[i].strPath;
 
       cv::Mat img = cv::imread(m_vValidateIntelList[i].strPath);
@@ -110,13 +98,6 @@ void CValidateModel::testValidateSetIntel(int pre_width, int pre_height)
         std::cout << "---------- Not Exist Image " << m_vValidateIntelList[i].strPath << " ----------" << std::endl;
         continue;
       }
-
-	  if (img.cols < img.rows)
-	  {
-		  cv::transpose(img, img);
-		  cv::flip(img, img, 1);
-	  }
-      //cv::resize(img, img, cv::Size(pre_width, pre_height));
 
       vImg.push_back(img);
       nCnt++;
@@ -170,10 +151,10 @@ void CValidateModel::testValidateSetIntel(int pre_width, int pre_height)
   }
 }
 
-CValidateModel::CValidateModel(string strModelRoot, string strTrainedFile, string strImgRoot, string strTestListFile, int gpuNum, bool bIntel, int pre_width, int pre_height)
+CValidateModel::CValidateModel(string strModelRoot, string strTrainedFile, string strImgRoot, string strTestListFile, int gpuNum)
 {
-  InitModel(strModelRoot, strTrainedFile, strImgRoot, strTestListFile, gpuNum, bIntel);
-  testValidateSetIntel(pre_width, pre_height);
+  InitModel(strModelRoot, strTrainedFile, strImgRoot, strTestListFile, gpuNum);
+  testValidateSet();
 }
 
 CValidateModel::~CValidateModel()

@@ -74,8 +74,8 @@ void CaffeClassifier::loadModel(const string& model_file,
 
 	Blob<float>* input_layer = net_->input_blobs()[0];
 	num_channels_ = input_layer->channels();
-	//CHECK(num_channels_ == 3 || num_channels_ == 1) // planet is 7 channels
-	//	<< "Input layer should have 1 or 3 channels.";
+	CHECK(num_channels_ == 3 || num_channels_ == 1)
+		<< "Input layer should have 1 or 3 channels.";
 	input_geometry_ = cv::Size(input_layer->width(), input_layer->height());
 
 	/* Load the binaryproto mean file. */
@@ -422,6 +422,51 @@ void CaffeClassifier::SetMean(const string& mean_file) {
 	//mean_ = cv::Mat(input_geometry_, mean.type(), channel_mean);
 }
 
+vector< vector< vector< vector< float > > > >  CaffeClassifier::PredictFcnBatch(const vector< cv::Mat > imgs)
+{
+  Blob<float>* input_layer = net_->input_blobs()[0];
+
+  input_layer->Reshape(batch_size_, num_channels_,
+    input_geometry_.height,
+    input_geometry_.width);
+
+  /* Forward dimension change to all layers. */
+  net_->Reshape();
+
+  std::vector< std::vector<cv::Mat> > input_batch;
+  WrapBatchInputLayer(&input_batch);
+
+  PreprocessBatch(imgs, &input_batch);
+  net_->Forward();
+
+  Blob<float>* output_layer = net_->output_blobs()[0];
+  const float* begin = output_layer->cpu_data();
+
+
+  vector< vector< vector< vector< float > > > > outblobCopy;
+
+  for (int b = 0; b < output_layer->num(); b++)
+  {
+    //label
+    vector< vector< vector< float> > > vC;
+    for (int c = 0; c < output_layer->channels(); c++)
+    {
+      vector< vector< float> > vH;
+      for (int h = 0; h < output_layer->height(); h++)
+      {
+        vector< float> vW;
+        for (int w = 0; w < output_layer->width(); w++)
+        {
+          vW.push_back(output_layer->data_at(b, c, h, w));
+        }
+        vH.push_back(vW);
+      }
+      vC.push_back(vH);
+    }
+    outblobCopy.push_back(vC);
+  }
+  return outblobCopy;
+}
 
 vector< float >  CaffeClassifier::PredictBatchNonSub(const vector< cv::Mat > imgs)
 {

@@ -272,6 +272,7 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
 	// distortion - pre resize
 	const float max_distortion = param_.max_distortion();
 	int rIndex = Rand(0X0FFFFFFF);
+	int apply_dist = Rand(2);
 	cv::RNG rng = cv::RNG(rIndex);
 	float fDist = rng.uniform(float(max_distortion*-1.0), max_distortion);
 
@@ -294,7 +295,7 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
 	distCoeffs.ptr<float>(0)[3] = 0;//fix
 	distCoeffs.ptr<float>(0)[4] = 0;//fix
 	
-	if (fDist != 0.0)
+	if (fDist != 0.0 && apply_dist)
 	{
 		cv::undistort(pre_img, distImg, intrinsic, distCoeffs);
 		distImg.copyTo(pre_img);
@@ -324,36 +325,45 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
 	//	mean = data_mean_.mutable_cpu_data();
 	//}
 
-	//if (has_mean_values) {
-	//	CHECK(mean_values_.size() == 1 || mean_values_.size() == img_channels) <<
-	//		"Specify either 1 mean_value or as many as channels: " << img_channels;
-	//	if (img_channels > 1 && mean_values_.size() == 1) {
-	//		// Replicate the mean_value for simplicity
-	//		for (int c = 1; c < img_channels; ++c) {
-	//			mean_values_.push_back(mean_values_[0]);
-	//		}
-	//	}
-	//}
+
 
 	/* The format of the mean file is planar 32-bit float BGR or grayscale. */
-	std::vector<cv::Mat> vecMean;
-	Dtype* data = data_mean_.mutable_cpu_data();
-	for (int i = 0; i < img.channels(); ++i) {
-		/* Extract an individual channel. */
-		cv::Mat c1mean(data_mean_.height(), data_mean_.width(), CV_32FC1, data);
-		vecMean.push_back(c1mean);
-		data += data_mean_.height() * data_mean_.width();
-	}
-
-	/* Merge the separate channels into a single image. */
+	const Dtype scale = param_.scale();
+	const bool has_mean_file = param_.has_mean_file();
+	const bool has_mean_values = mean_values_.size() > 0;
+	const int img_channels = img.channels();
 	cv::Mat meanImg;
-	cv::merge(vecMean, meanImg);
-	cv::resize(meanImg, meanImg, cv::Size(pre_resize_width, pre_resize_height));
-	if (display)
+	if (has_mean_file)
 	{
-		cv::resize(meanImg, meanImg, meanImg.size());
-		meanImg.convertTo(dispImg, CV_8UC3);
-		cv::imshow("mean", dispImg);
+		std::vector<cv::Mat> vecMean;
+		Dtype* data = data_mean_.mutable_cpu_data();
+		for (int i = 0; i < img.channels(); ++i) {
+			/* Extract an individual channel. */
+			cv::Mat c1mean(data_mean_.height(), data_mean_.width(), CV_32FC1, data);
+			vecMean.push_back(c1mean);
+			data += data_mean_.height() * data_mean_.width();
+		}
+
+		/* Merge the separate channels into a single image. */
+		cv::merge(vecMean, meanImg);
+		cv::resize(meanImg, meanImg, cv::Size(pre_resize_width, pre_resize_height));
+		if (display)
+		{
+			cv::resize(meanImg, meanImg, meanImg.size());
+			meanImg.convertTo(dispImg, CV_8UC3);
+			cv::imshow("mean", dispImg);
+		}
+	}
+	else if (has_mean_values)
+	{
+		CHECK(mean_values_.size() == 1 || mean_values_.size() == img_channels) <<
+			"Specify either 1 mean_value or as many as channels: " << img_channels;
+		if (img_channels > 1 && mean_values_.size() == 1) {
+			// Replicate the mean_value for simplicity
+			for (int c = 1; c < img_channels; ++c) {
+				mean_values_.push_back(mean_values_[0]);
+			}
+		}
 	}
 
 	const float max_pre_zoom = param_.max_pre_zoom();
@@ -423,7 +433,7 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
 	const bool bFlipHor = param_.flip_hor();
 
 
-	const int img_channels = cv_img.channels();
+
 	const int img_height = cv_img.rows;
 	const int img_width = cv_img.cols;
 
@@ -438,11 +448,9 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
 	CHECK_LE(width, img_width);
 	CHECK_GE(num, 1);
 
-	CHECK(cv_img.depth() == CV_8U) << "Image data type must be unsigned byte";
+	//CHECK(cv_img.depth() == CV_8U) << "Image data type must be unsigned byte";
 
-	const Dtype scale = param_.scale();
-	const bool has_mean_file = param_.has_mean_file();
-	const bool has_mean_values = mean_values_.size() > 0;
+
 
 	CHECK_GT(img_channels, 0);
 	CHECK_GE(img_height, crop_size);
@@ -513,7 +521,7 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
 	int mean_h_off = 0;
 	int mean_w_off = 0;
 
-	if (crop_size!= imgHeightIn || crop_size!= imgWidthIn)
+	if (crop_size != 0 && ( crop_size!= imgHeightIn || crop_size!= imgWidthIn))
 	{
 		CHECK_EQ(crop_size, height);
 		CHECK_EQ(crop_size, width);
@@ -635,7 +643,7 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
 	int apply_smooth = Rand(2);
 	if (smooth_filtering && apply_smooth) {
 		int smooth_type = Rand(4); // see opencv_util.hpp
-		smooth_param1 = 3 + 2 * (Rand(1));
+		smooth_param1 = 3 + 2 * (Rand(2));
 		switch (smooth_type) {
 		case 0:
 			//cv::Smooth(cv_img, cv_img, smooth_type, smooth_param1);
@@ -783,7 +791,11 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
 
 	// mean substract
 	cv::Mat sample_float;
-	if (channels == 3)
+	if (cv_img.depth() == CV_32F)
+	{
+		sample_float = cv_img;
+	}
+	else if (channels == 3)
 		cv_img.convertTo(sample_float, CV_32FC3);
 	else
 		cv_img.convertTo(sample_float, CV_32FC1);
