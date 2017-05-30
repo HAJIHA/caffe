@@ -27,6 +27,7 @@ void CValidateModel::InitModel(string strModelRoot, string strTrainedFile, strin
   labelFile << "Type_1\n";
   labelFile << "Type_2\n";
   labelFile << "Type_3\n";
+  labelFile.close();
 
   m_ValidateListFile = strRoot + strTestListFile;
   vector<string> vTraindFile = CStringParse::splitString(strTrainedFile, '.');
