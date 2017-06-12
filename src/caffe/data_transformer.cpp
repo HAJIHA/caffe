@@ -546,13 +546,18 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
 		}
 		cv::Rect roi(w_off, h_off, crop_size, crop_size);
 		cv_img = cv_img(roi);
-		meanImg = meanImg(roi);
+		if (has_mean_file)
+		{
+			meanImg = meanImg(roi);
+		}
 
 		if (display)
 		{
 			cv::imshow("Cropping", cv_img);
-
-			meanImg.convertTo(dispImg, CV_8UC3);
+			if (has_mean_file)
+			{
+				meanImg.convertTo(dispImg, CV_8UC3);
+			}
 			cv::imshow("Cropping Mean", dispImg);
 		}
 		//cv_cropped_img.copyTo(cv_img);

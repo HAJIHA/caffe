@@ -279,7 +279,6 @@ void CVMatToDatum(const cv::Mat& cv_img, Datum* datum, int depth)
 		int img_index = 0;
 		for (int w = 0; w < datum_width; ++w) {
 			for (int c = 0; c < datum_channels; ++c) {
-				//int datum_index = (c * datum_height + h) * datum_width + w;
 				datum->add_float_data( ptr[img_index++]);
 			}
 		}
@@ -313,8 +312,7 @@ void CVMatToDatum(const cv::Mat& cv_img, Datum* datum) {
   datum->set_data(buffer);
 }
 
-cv::Mat DatumToCVMat(const Datum& datum)
-{
+cv::Mat DatumToCVMat(const Datum& datum){
 	int datum_channels = datum.channels();
 	int datum_height = datum.height();
 	int datum_width = datum.width();
@@ -346,16 +344,11 @@ cv::Mat DatumToCVMat(const Datum& datum)
 			int img_index = 0;
 			for (int w = 0; w < datum_width; ++w) {
 				for (int c = 0; c < datum_channels; ++c) {
-					int datum_index = (c * datum_height + h) * datum_width + w;
-					ptr[img_index++] = static_cast<float>(datum.float_data(datum_index));
+					ptr[img_index++] = static_cast<float>(datum.float_data(img_index));
 				}
 			}
 		}
 	}
-	
-
-
-
 	return cv_img;
 }
 #endif  // USE_OPENCV

@@ -23,14 +23,12 @@ private:
 	string m_ImgRoot;
 	string m_strSavePredictResult;
 
-    struct stValSetIntel
+    struct stValSetPlanet
     {
       string strPath;
-      string strOrginCode;
-      string strPredictCode;
-      float fProb[3];
+	  vector<string> vstrCode;
     };
-    vector<stValSetIntel> m_vValidateIntelList;
+    vector<stValSetPlanet> m_vValidateList;
 
 	CaffeClassifier m_classifier;
 	vector<string> m_label;

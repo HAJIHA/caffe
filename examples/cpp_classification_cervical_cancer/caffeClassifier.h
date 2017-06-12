@@ -37,7 +37,7 @@ public:
 		const int gpuNum);
 
     vector<Prediction> ClassifyIntel(const cv::Mat img);
-
+	vector<Prediction> ClassifyOverSample(const cv::Mat img, int num_classes, int num_overSample);
 
 	std::vector<string> getLabelList();
 
@@ -48,8 +48,8 @@ private:
 	void WrapBatchInputLayer(std::vector<std::vector<cv::Mat> > *input_batch);
 	vector<cv::Mat> OverSample(const vector<cv::Mat> vImgs, int size);
 	vector<cv::Mat> OverSample(const cv::Mat img, int size);
-	vector<cv::Mat> OverSampleIntel(const cv::Mat img, int nOverSample);
-	vector<cv::Mat> OverSampleIntel(const cv::Mat img, int nOverSample, cv::Mat mean);
+	vector<cv::Mat> OverSamplePlanet(const cv::Mat img, int nOverSample);
+	vector<cv::Mat> OverSamplePlanet(const cv::Mat img, int nOverSample, cv::Mat mean);
 	//vector<cv::Mat> OverSampleUnifDist(const cv::Mat img, int nOverSample);
 
 	vector< float >  PredictBatch(const vector< cv::Mat > imgs);

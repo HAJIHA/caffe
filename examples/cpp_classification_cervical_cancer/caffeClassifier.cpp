@@ -112,7 +112,7 @@ std::vector<string> CaffeClassifier::getLabelList()
 	return labels_;
 }
 
-vector<cv::Mat> CaffeClassifier::OverSampleIntel(const cv::Mat img, int nOverSample, cv::Mat mean)
+vector<cv::Mat> CaffeClassifier::OverSamplePlanet(const cv::Mat img, int nOverSample, cv::Mat mean)
 {
 	cv::Mat resultImg = img;
 	int srcW = resultImg.cols;
@@ -150,10 +150,10 @@ vector<cv::Mat> CaffeClassifier::OverSampleIntel(const cv::Mat img, int nOverSam
 	//waitKey(0);
 
 
-	return OverSampleIntel(sample_normalized, nOverSample);
+	return OverSamplePlanet(sample_normalized, nOverSample);
 }
 
-vector<cv::Mat> CaffeClassifier::OverSampleIntel(const cv::Mat img, int nOverSample)
+vector<cv::Mat> CaffeClassifier::OverSamplePlanet(const cv::Mat img, int nOverSample)
 {
 	cv::Mat resultOmitImg = img;
 
@@ -312,12 +312,42 @@ vector<cv::Mat> CaffeClassifier::OverSample(const vector<cv::Mat> vImgs, int siz
 	return vRetImgs;
 }
 
+
+vector<Prediction> CaffeClassifier::ClassifyOverSample(const cv::Mat img, int num_classes, int num_overSample)
+{
+	vector<cv::Mat> vImgs = OverSample(img, num_overSample);
+
+	std::vector<float> output_batch = PredictBatch(vImgs);
+	std::vector<float> output;
+
+	for (int i = 0; i < labels_.size(); i++)
+		output.push_back(output_batch[i]);
+
+	for (int i = labels_.size(); i < output_batch.size(); i++)
+	{
+		int idx = i% labels_.size();
+		output[idx] = MAX(output[idx], output_batch[i]);
+
+	}
+
+	std::vector<Prediction> prediction_single;
+	std::vector<int> maxN = Argmax(output, num_classes);
+	for (int i = 0; i < num_classes; ++i)
+	{
+		int idx = maxN[i];
+		prediction_single.push_back(std::make_pair(labels_[idx], output[idx]));
+	}
+
+	return prediction_single;
+}
+
+
 vector<Prediction> CaffeClassifier::ClassifyIntel(const cv::Mat img)
 {
   int nOverSample = 72;
   const int maxBatch = 24;
   //vector<cv::Mat> vImgs = OverSampleIntel(img, nOverSample);
-  vector<cv::Mat> vImgs = OverSampleIntel(img, nOverSample,mean_);
+  vector<cv::Mat> vImgs = OverSamplePlanet(img, nOverSample,mean_);
   vector< vector<cv::Mat> > vvImg;
   for (int i = 0; i < nOverSample / maxBatch ; i++)
   {

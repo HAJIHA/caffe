@@ -74,8 +74,8 @@ void CaffeClassifier::loadModel(const string& model_file,
 
 	Blob<float>* input_layer = net_->input_blobs()[0];
 	num_channels_ = input_layer->channels();
-	CHECK(num_channels_ == 3 || num_channels_ == 1)
-		<< "Input layer should have 1 or 3 channels.";
+	//CHECK(num_channels_ == 3 || num_channels_ == 1)
+	//	<< "Input layer should have 1 or 3 channels.";
 	input_geometry_ = cv::Size(input_layer->width(), input_layer->height());
 
 	/* Load the binaryproto mean file. */
@@ -112,7 +112,7 @@ std::vector<string> CaffeClassifier::getLabelList()
 	return labels_;
 }
 
-vector<cv::Mat> CaffeClassifier::OverSampleIntel(const cv::Mat img, int nOverSample, cv::Mat mean)
+vector<cv::Mat> CaffeClassifier::OverSamplePlanet(const cv::Mat img, int nOverSample, cv::Mat mean)
 {
 	cv::Mat resultImg = img;
 	int srcW = resultImg.cols;
@@ -125,88 +125,46 @@ vector<cv::Mat> CaffeClassifier::OverSampleIntel(const cv::Mat img, int nOverSam
 		srcH = resultImg.rows;
 	}
 
-	cv::Mat resizeMean = mean;
-
 	cv::Mat sample_float;
 	if (num_channels_ == 3)
 		resultImg.convertTo(sample_float, CV_32FC3);
+	else if(num_channels_ == 7)
+		resultImg.convertTo(sample_float, CV_32FC(7));
 	else
 		resultImg.convertTo(sample_float, CV_32FC1);
 
-	cv::resize(resizeMean, resizeMean, cv::Size(srcW, srcH));
-	cv::Mat sample_normalized;
-	cv::subtract(sample_float, resizeMean, sample_normalized);
 
-	//cv::Mat debugImg;
-	//sample_float.convertTo(debugImg, CV_8UC3);
-	//resize(debugImg, debugImg, debugImg.size() / 10);
-	//imshow("src", debugImg);
-	//resizeMean.convertTo(debugImg, CV_8UC3);
-	//resize(debugImg, debugImg, debugImg.size() / 10);
-	//imshow("mean", debugImg);
-	//sample_normalized.convertTo(debugImg, CV_8UC3);
-	//resize(debugImg, debugImg, debugImg.size() / 10);
-	//imshow("normalized", debugImg);
+	Mat sample_normalized;
+	subtract(sample_float, mean, sample_normalized);
+
+
+	//vector<Mat> vImgSplit;
+	//vector<Mat> vImgMean;
+	//vector<Mat> vImgSrc;
+	//split(img, vImgSrc);
+	//split(mean, vImgMean);
+	//split(sample_normalized, vImgSplit);
+
+	//for (int chidx = 0; chidx < vImgSplit.size(); chidx++)
+	//{
+	//	Mat dispImg;
+	//	double minVal, maxVal;
+	//	minMaxLoc(vImgSrc[chidx], &minVal, &maxVal); //find minimum and maximum intensities
+	//	vImgSrc[chidx].convertTo(dispImg, CV_8UC1, 255.0 / (maxVal - minVal), -minVal * 255.0 / (maxVal - minVal));
+	//	imshow("src_" + to_string(chidx), dispImg);
+
+	//	minMaxLoc(vImgMean[chidx], &minVal, &maxVal); //find minimum and maximum intensities
+	//	vImgMean[chidx].convertTo(dispImg, CV_8UC1, 255.0 / (maxVal - minVal), -minVal * 255.0 / (maxVal - minVal));
+	//	imshow("mean_" + to_string(chidx), dispImg);
+
+	//	minMaxLoc(vImgSplit[chidx], &minVal, &maxVal); //find minimum and maximum intensities
+	//	vImgSplit[chidx].convertTo(dispImg, CV_8UC1, 255.0 / (maxVal - minVal), -minVal * 255.0 / (maxVal - minVal));
+	//	imshow("sample_normalized_" + to_string(chidx), dispImg);
+	//}
 	//waitKey(0);
 
 
-	return OverSampleIntel(sample_normalized, nOverSample);
-}
-
-vector<cv::Mat> CaffeClassifier::OverSampleIntel(const cv::Mat img, int nOverSample)
-{
-	cv::Mat resultOmitImg = img;
-
-	vector<cv::Mat> retMat;
-	int srcW = resultOmitImg.cols;
-	int srcH = resultOmitImg.rows;
-
-	int tarW = input_geometry_.width;
-	int tarH = input_geometry_.height;
-	if (srcH > srcW)
-	{
-		cv::transpose(resultOmitImg, resultOmitImg);
-		cv::flip(resultOmitImg, resultOmitImg, 1);
-	}
-	srcW = resultOmitImg.cols;
-	srcH = resultOmitImg.rows;
-
-	float whRatio = (float)srcW / (float)srcH;
-
-	vector<cv::Mat> PreImage;
-	vector<cv::Size> vSize;
-	vector<int> vOmitX;
-	int hNew = tarH;
-	int wNew = static_cast<int>((float)hNew*whRatio + 0.5);
-	for (int i = 0; i < nOverSample/3 ; i++)
-	{
-		cv::Size size;
-		size.width = wNew;
-		size.height = hNew;
-		vSize.push_back(size);
-		vOmitX.push_back((hNew - tarH)/ 2);
-		wNew *= 1.035;
-		hNew *= 1.035;
-	}
-
-	for (int i = 0; i < vSize.size(); i++)
-	{
-		cv::Mat resizePre;
-		cv::resize(resultOmitImg, resizePre, vSize[i]);
-		cv::Rect left, right, centor;
-		left.x = vOmitX[i];
-		right.x = resizePre.cols - tarW;
-		centor.x = resizePre.cols / 2 - tarW / 2;
-		left.y = right.y = 	centor.y = vOmitX[i];
-		left.width = right.width = centor.width = tarW;
-		left.height = right.height = centor.height = tarH;
-
-		retMat.push_back(resizePre(left));
-		retMat.push_back(resizePre(right));
-		retMat.push_back(resizePre(centor));
-	}
-
-	return retMat;
+	return OverSample(sample_normalized, nOverSample);
 }
 
 vector<cv::Mat> CaffeClassifier::OverSample(const cv::Mat img, int size)
@@ -312,12 +270,40 @@ vector<cv::Mat> CaffeClassifier::OverSample(const vector<cv::Mat> vImgs, int siz
 	return vRetImgs;
 }
 
+vector<Prediction> CaffeClassifier::ClassifyOverSample(const cv::Mat img, int num_classes, int num_overSample)
+{
+	vector<cv::Mat> vImgs = OverSamplePlanet(img, num_overSample,mean_);
+
+	std::vector<float> output_batch = PredictBatchNonSub(vImgs);
+	std::vector<float> output;
+
+	for (int i = 0; i < labels_.size(); i++)
+		output.push_back(output_batch[i]);
+
+	for (int i = labels_.size(); i < output_batch.size(); i++)
+	{
+		int idx = i% labels_.size();
+		output[idx] += output_batch[i];
+
+	}
+
+	std::vector<Prediction> prediction_single;
+	std::vector<int> maxN = Argmax(output, num_classes);
+	for (int i = 0; i < num_classes; ++i)
+	{
+		int idx = maxN[i];
+		prediction_single.push_back(std::make_pair(labels_[idx], output[idx]));
+	}
+
+	return prediction_single;
+}
+
 vector<Prediction> CaffeClassifier::ClassifyIntel(const cv::Mat img)
 {
   int nOverSample = 72;
   const int maxBatch = 24;
   //vector<cv::Mat> vImgs = OverSampleIntel(img, nOverSample);
-  vector<cv::Mat> vImgs = OverSampleIntel(img, nOverSample,mean_);
+  vector<cv::Mat> vImgs = OverSamplePlanet(img, nOverSample,mean_);
   vector< vector<cv::Mat> > vvImg;
   for (int i = 0; i < nOverSample / maxBatch ; i++)
   {
@@ -569,8 +555,10 @@ void CaffeClassifier::PreprocessBatchNonSub(const vector<cv::Mat> imgs, std::vec
 		cv::Mat sample_float;
 		if (num_channels_ == 3)
 			sample_resized.convertTo(sample_float, CV_32FC3);
-		else
+		else if (num_channels_ == 1)
 			sample_resized.convertTo(sample_float, CV_32FC1);
+		else if (num_channels_ == 7)
+			sample_resized.convertTo(sample_float, CV_32FC(7));
 
 		/* This operation will write the separate BGR planes directly to the
 		* input layer of the network because it is wrapped by the cv::Mat
@@ -612,8 +600,10 @@ void CaffeClassifier::PreprocessBatch(const vector<cv::Mat> imgs,	std::vector< s
 		cv::Mat sample_float;
 		if (num_channels_ == 3)
 			sample_resized.convertTo(sample_float, CV_32FC3);
-		else
+		else if(num_channels_ == 1)
 			sample_resized.convertTo(sample_float, CV_32FC1);
+		else if (num_channels_ == 7)
+			sample_resized.convertTo(sample_float, CV_32FC(7));
 
 		cv::Mat sample_normalized;
 		cv::subtract(sample_float, mean_, sample_normalized);

@@ -3,6 +3,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <string>
 
 #include "boost/scoped_ptr.hpp"
 #include "gflags/gflags.h"
@@ -14,15 +15,17 @@
 #include <opencv2\opencv.hpp>
 
 using namespace caffe;  // NOLINT(build/namespaces)
-
+using namespace cv;
+using namespace std;
 using std::max;
 using std::pair;
 using boost::scoped_ptr;
 
 DEFINE_string(backend, "lmdb",
 	"The backend {leveldb, lmdb} containing the images");
-DEFINE_int32(resize_width, 0, "Width images are resized to");
-DEFINE_int32(resize_height, 0, "Height images are resized to");
+DEFINE_int32(resize_width, 256, "Width images are resized to");
+DEFINE_int32(resize_height, 256, "Height images are resized to");
+DEFINE_string(depth, "8U", "depth");
 
 int main(int argc, char** argv) {
 	::google::InitGoogleLogging(argv[0]);
@@ -46,6 +49,7 @@ int main(int argc, char** argv) {
 
 	int pre_width = std::max<int>(0, FLAGS_resize_height);
 	int pre_height = std::max<int>(0, FLAGS_resize_width);
+	string strdepth = FLAGS_depth;
 
 	scoped_ptr<db::DB> db(db::GetDB(FLAGS_backend));
 	db->Open(argv[1], db::READ);
@@ -87,7 +91,27 @@ int main(int argc, char** argv) {
 			cv::resize(cv_img, cv_img, cv::Size(pre_width, pre_height));
 
 		Datum datum;
-		CVMatToDatum(cv_img, &datum);
+		if (strdepth == "8U")
+		{
+			CVMatToDatum(cv_img, &datum,CV_8U);
+		}
+		else
+		{
+			CVMatToDatum(cv_img, &datum, CV_32F);
+		}
+
+		//vector<Mat> vImgSplit;
+		//split(cv_img, vImgSplit);
+		//for (int chidx = 0; chidx < vImgSplit.size(); chidx++)
+		//{
+		//	Mat dispImg;
+		//	double minVal, maxVal;
+		//	minMaxLoc(vImgSplit[chidx], &minVal, &maxVal); //find minimum and maximum intensities
+		//	vImgSplit[chidx].convertTo(dispImg, CV_8UC1, 255.0 / (maxVal - minVal), -minVal * 255.0 / (maxVal - minVal));
+		//	imshow("ch_" + to_string(chidx), dispImg);
+		//}
+
+		//waitKey(0);
 
 		const std::string& data = datum.data();
 		size_in_datum = std::max<int>(datum.data().size(),
@@ -121,7 +145,7 @@ int main(int argc, char** argv) {
 		sum_blob.set_data(i, sum_blob.data(i) / count);
 	}
 	// Write to disk
-	if (argc > 3) {
+	if (argc >= 3) {
 		LOG(INFO) << "Write to " << argv[2];
 		WriteProtoToBinaryFile(sum_blob, argv[2]);
 	}

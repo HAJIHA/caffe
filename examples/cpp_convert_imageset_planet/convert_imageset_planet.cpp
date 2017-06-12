@@ -14,6 +14,7 @@
 #include <utility>
 #include <vector>
 #include <map>
+#include <opencv2/opencv.hpp>
 
 #include "boost/scoped_ptr.hpp"
 #include "gflags/gflags.h"
@@ -42,6 +43,49 @@ DEFINE_bool(multi_label, false,
 	"multi label use true : label is all zero");
 DEFINE_string(label_file, "I:/imgfolder/LMDB/planet/synset_words.txt",
 	"label_file path");
+
+
+
+bool ReadImageToDatumPlanet(const vector<string> vFile, const int label,
+	const int height, const int width, const int channels, Datum* datum)
+{
+	vector<cv::Mat> vImgMerge;
+	cv::Mat merge_img;
+	for (int i = 0; i < vFile.size(); i++)
+	{
+		vector<cv::Mat> vImgSplit;
+		cv::Mat cv_img = cv::imread(vFile[i], CV_LOAD_IMAGE_UNCHANGED);
+		if (height > 0 || width> 0)
+			cv::resize(cv_img, cv_img, cv::Size(width, height));
+		cv::split(cv_img, vImgSplit);
+
+		for (int j = 0; j < vImgSplit.size(); j++)
+		{
+			cv::Mat fImg;
+			int imgdepth = vImgSplit[j].depth();
+			if (imgdepth == CV_8U)
+			{
+				vImgSplit[j].convertTo(fImg, CV_32FC1);
+			}
+			else
+			{
+				vImgSplit[j] /=  255.0;
+				vImgSplit[j].convertTo(fImg, CV_32FC1);
+			}
+			vImgMerge.push_back(fImg);
+		}
+	}
+	if (vImgMerge.size() != channels)
+	{
+		LOG(WARNING) << " Not equal channels  : first img path " << vFile[0];
+		return false;
+	}
+
+	cv::merge(vImgMerge, merge_img);
+	CVMatToDatum(merge_img, datum, merge_img.depth());
+	datum->set_label(label);
+	return true;
+}
 
 int main(int argc, char** argv) {
 #ifdef USE_OPENCV
@@ -144,7 +188,7 @@ int main(int argc, char** argv) {
 	{
 		bool status;
 
-		status = ReadImageToDatum(vvImgFile[line_id], 0,
+		status = ReadImageToDatumPlanet(vvImgFile[line_id], 0,
 			 resize_height, resize_width, nChannelNum,
 			 &datum);
 

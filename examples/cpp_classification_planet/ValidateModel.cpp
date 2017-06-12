@@ -3,7 +3,7 @@
 #include "ValidateModel.h"
 #include "../cpp_classification_cervical_cancer/ManageDirectory.h"
 
-
+using namespace cv;
 
 void CValidateModel::InitModel(string strModelRoot, string strTrainedFile, string strImgRoot, string strTestListFile, int gpuNum)
 {
@@ -58,21 +58,13 @@ void CValidateModel::testValidateSet()
   while (!inFile.getline(buf, sizeof(buf)).eof())
   {
     string line = string(buf);
-    vector<string> vstrline = CStringParse::splitString(line, ' ');
+    vector<string> vstrline = CStringParse::splitString(line, '\t');
 
-    stValSetIntel OneSet;
+	vector<string> vstrLabel = CStringParse::splitString(vstrline[1], ' ');
+    stValSetPlanet OneSet;
     OneSet.strPath = vstrline[0];
-    if (vstrline.size() == 1)
-    {
-      bTestSet = true;
-      OneSet.strOrginCode = "NotCal";
-    }
-    else
-    {
-      int nSolLabel = atoi(vstrline[1].c_str());
-      OneSet.strOrginCode = m_label[nSolLabel];
-    }
-    m_vValidateIntelList.push_back(OneSet);
+	OneSet.vstrCode = vstrLabel;
+	m_vValidateList.push_back(OneSet);
   }
 
   string strHeader = "image_name,tags";
@@ -80,26 +72,65 @@ void CValidateModel::testValidateSet()
   outFile << strHeader + "\n";
 
   const int nImgSize = m_nBatchSize / m_nOverSample;
-  vector<cv::Mat> vImg;
   int nCnt = 0;
-  for (int i = 0; i < m_vValidateIntelList.size(); i++)
+  for (int i = 0; i < m_vValidateList.size(); i++)
   {
     clock_t st;
     clock_t et;
     st = clock();
 	//여기서부터 휴가 복귀후 코딩
-    m_vValidateIntelList[i].strPath = m_ImgRoot + m_vValidateIntelList[i].strPath;
+		
+	string strJpgPath;
+	string strTifPath;
+	string subFolder;
+	if (m_vValidateList[i].strPath.substr(0, 4) == "test")
+	{
+		subFolder = "test";
+	}
+	else
+	{
+		subFolder = "train";
+	}
+	strJpgPath = m_ImgRoot + subFolder + "-jpg/" + m_vValidateList[i].strPath + ".jpg";
+	strTifPath = m_ImgRoot + subFolder + "-tif/" + m_vValidateList[i].strPath + ".tif";
 
-      cv::Mat img = cv::imread(m_vValidateIntelList[i].strPath);
-      if (img.empty())
-      {
-        inFile.close();
-        //remove(m_vValidateIntelList[i].strPath.c_str());
-        std::cout << "---------- Not Exist Image " << m_vValidateIntelList[i].strPath << " ----------" << std::endl;
-        continue;
-      }
+	vector<string> vFile;
+	vFile.push_back(strJpgPath);
+	vFile.push_back(strTifPath);
 
-      vImg.push_back(img);
+	  vector<cv::Mat> vImgMerge;
+	  cv::Mat merge_img;
+	  for (int subidx = 0; subidx < vFile.size(); subidx++)
+	  {
+		  vector<cv::Mat> vImgSplit;
+		  cv::Mat cv_img = cv::imread(vFile[subidx], CV_LOAD_IMAGE_UNCHANGED);
+		  cv::split(cv_img, vImgSplit);
+		  for (int j = 0; j < vImgSplit.size(); j++)
+		  {
+			  cv::Mat fImg;
+			  int d = vImgSplit[j].depth();
+			  vImgSplit[j].convertTo(fImg, CV_32FC1);
+			  vImgMerge.push_back(fImg);
+		  }
+	  }
+	  if (vImgMerge.size() != 7)
+	  {
+		  LOG(WARNING) << " Not equal channels  : first img path " << vFile[0];
+		  continue;
+	  }
+
+	  //for (int chidx = 0; chidx < vImgMerge.size(); chidx++)
+	  //{
+		 // Mat dispImg;
+		 // double minVal, maxVal;
+		 // minMaxLoc(vImgMerge[chidx], &minVal, &maxVal); //find minimum and maximum intensities
+		 // vImgMerge[chidx].convertTo(dispImg, CV_8UC1, 255.0 / (maxVal - minVal), -minVal * 255.0 / (maxVal - minVal));
+		 // imshow("cv_img_" + to_string(chidx), dispImg);
+	  //}
+	  //waitKey(0);
+
+	  cv::merge(vImgMerge, merge_img);
+
       nCnt++;
       if (nCnt < nImgSize)
       {
@@ -110,40 +141,27 @@ void CValidateModel::testValidateSet()
       }
 
       ///////////////////////////////////////////////////
-
-      vector< vector<Prediction> >  vPredictions;
-
-      vector<Prediction> prediction = m_classifier.ClassifyIntel(vImg[0]);
-      vPredictions.push_back(prediction);
-      vImg.clear();
+      vector<Prediction> prediction = m_classifier.ClassifyOverSample(merge_img,17,10);
       nCnt = 0;
-      m_vValidateIntelList[i].strPredictCode = vPredictions[0][0].first;
 
-      for (int labelidx = 0; labelidx < 3; labelidx++)
-      {
-        for (int prdidx = 0; prdidx < 3; prdidx++)
-        {
-          if (m_label[labelidx] == vPredictions[0][prdidx].first)
-          {
-            m_vValidateIntelList[i].fProb[labelidx] = vPredictions[0][prdidx].second;
-            break;
-          }
-        }
-      }
 
-    for (int p = 0; p < nImgSize; p++)
-    {
-      stValSetIntel tempSet;
-      tempSet = m_vValidateIntelList[i - (nImgSize - 1) + p];
+	  float fThresh = 0.0001;
+	  string strOneLineOut;
+	  strOneLineOut = m_vValidateList[i].strPath + "\t";
 
-      string strOneLineOut;
-      string strFileName = CManageDirectory::getFileName(tempSet.strPath, '\\');
-      strOneLineOut = strFileName + ",";
-      strOneLineOut += to_string(tempSet.fProb[0]) + ",";
-      strOneLineOut += to_string(tempSet.fProb[1]) + ",";
-      strOneLineOut += to_string(tempSet.fProb[2]) + "\n";
-      outFile << strOneLineOut;
-    }
+	  for (int prdidx = 0; prdidx < prediction.size(); prdidx++)
+	  {
+		  if (prediction[prdidx].second < fThresh)
+		  {
+			  strOneLineOut += "\n";
+			  break;
+		  }
+		  else
+		  {
+			  strOneLineOut += prediction[prdidx].first + " ";
+		  }
+	  }
+	  outFile << strOneLineOut;
 
     et = clock();
     double dTime = (double)(et - st) / CLOCKS_PER_SEC;
