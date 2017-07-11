@@ -10,7 +10,7 @@ std::vector<std::string> CManageDirectory::get_files_inDirectory(const std::stri
 	std::vector<std::string> return_;
 
 	_finddata_t fd;
-	long handle = _findfirst(searching.c_str(), &fd);  //현재 폴더 내 모든 파일을 찾는다.
+	long long handle = _findfirst(searching.c_str(), &fd);  //현재 폴더 내 모든 파일을 찾는다.
 
 	if (handle == -1)    return return_;
 
