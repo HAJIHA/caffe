@@ -70,6 +70,9 @@ void CaffeClassifier::loadModel(const string& model_file,
 	SelMinValueCode.push_back("TC11");
 	SelMinValueCode.push_back("OK");
 	SelMinValueCode.push_back("5219");
+	SelMinValueCode.push_back("NDEF");
+	SelMinValueCode.push_back("DETC");
+
 	setSelelctMinValueLabel(SelMinValueCode);
 
 	/* Set batchsize */
