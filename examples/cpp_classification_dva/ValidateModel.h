@@ -8,6 +8,7 @@ class CValidateModel
 {
 public:
 	CValidateModel(string strModelRoot, string strTrainedFile, string strImgRoot, string strTestListFile, int gpuNum);
+	CValidateModel(string strModelRoot, string strTrainedFile, string strImgRoot, string strTestListFile, int gpuNum, string strType);
     CValidateModel(string strModelRoot, string strTrainedFile, string strImgRoot, string strTestListFile, int gpuNum, bool bIntel);
 	~CValidateModel();
 
@@ -15,6 +16,7 @@ private:
     void InitModel(string strModelRoot, string strTrainedFile, string strImgRoot, string strTestListFile, int gpuNum, bool bIntel);
 	//void InitModel(string strModelRoot, string strTrainedFile, string strImgRoot, string strTestListFile, int gpuNum);
 	void testValidateSet();
+	void testValidateSetMeasure();
     void testValidateSetIntel();
 	int m_nOverSample;
 	int m_nBatchSize;
@@ -27,6 +29,13 @@ private:
 	string m_ImgRoot;
 	string m_strSavePredictResult;
 	string m_strSaveValidate;
+
+	struct stValSetMeasure
+	{
+		string strPath;
+		vector<float> fOrigin;
+		vector<float> fMeasure;
+	};
 
 	struct stValSet
 	{
@@ -46,6 +55,7 @@ private:
     vector<stValSetIntel> m_vValidateIntelList;
 
 	vector<stValSet> m_vValidateList;
+	vector<stValSetMeasure> m_vValidateMeasureList;
 	CaffeClassifier m_classifier;
 	vector<string> m_label;
 

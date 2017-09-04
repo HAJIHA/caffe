@@ -37,6 +37,8 @@ public:
 		const int gpuNum);
 	vector< vector<Prediction> > ClassifyBatch(const vector< cv::Mat > imgs, int num_classes);
 	vector<Prediction> ClassifyOverSample(const cv::Mat img, int num_classes, int num_overSample);
+	vector<float> MeasureOverSample(const cv::Mat img, int num_overSample);
+
 	vector< vector< Prediction > > ClassifyFcnBatch(const vector<cv::Mat> img, int num_classes);
 	//vector<vector<Prediction>> ClassifyOverSample(const vector<cv::Mat> vImg, int num_classes, int num_overSample);
 	cv::Mat getmean();
@@ -61,12 +63,11 @@ private:
 	vector< vector< vector< vector< float > > > > PredictFcnBatch(const vector< cv::Mat > imgs);
 	void SetMean(const string& mean_file);
 
-	std::vector<float> Predict(const cv::Mat& img);
+	// std::vector<float> Predict(const cv::Mat& img);
 
-	void WrapInputLayer(std::vector<cv::Mat>* input_channels);
+	// void WrapInputLayer(std::vector<cv::Mat>* input_channels);
 
-	void Preprocess(const cv::Mat& img,
-		std::vector<cv::Mat>* input_channels);
+	// void Preprocess(const cv::Mat& img, std::vector<cv::Mat>* input_channels);
 	bool isMinValueCode(string code);
 
 

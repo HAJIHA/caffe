@@ -75,13 +75,15 @@ int main(int argc, char** argv)
 		strImgRoot += "/";
 		string strTrainedPreFix = argv[5];
 		string strGpu = argv[6];
-		//string strMultiNum = argv[7];
+		string strType;
+		if (argc > 7)
+			strType = argv[7];
+
 
 		string strModelFile = strTrainedPreFix + "*.caffemodel";
 		string strScoreFile = strTrainedPreFix + "*_Score.txt";
 
 		int nGpu = atoi(strGpu.c_str());
-		//int nMulti = atoi(strMultiNum.c_str());
 		while (1)
 		{
 			_sleep(1000);
@@ -110,8 +112,16 @@ int main(int argc, char** argv)
 
 				if (bSkip)
 					continue;
+				
+				if (strType == "measure")
+				{
+					CValidateModel val(strModelRoot, vStrTrainedFile[i], strImgRoot, strTestListFile, nGpu, strType);
+				}
+				else
+				{
+					CValidateModel val(strModelRoot, vStrTrainedFile[i], strImgRoot, strTestListFile, nGpu);
+				}
 
-				CValidateModel val(strModelRoot, vStrTrainedFile[i], strImgRoot, strTestListFile, nGpu);
 			}
 
 
@@ -159,9 +169,10 @@ int main(int argc, char** argv)
 		_sleep(1000);
 		//vector<string> vClassifyList = CManageDirectory::get_files_inDirectory(strpath, "*.txt",6);
 		//vector<string> vClassifyList = CManageDirectory::get_files_inDirectory(vStrPath, "*.txt", 6);
-		vector<string> vClassifyList, vClassifyList_tmpPRIOR, vClassifyList_tmpALL;
-		vClassifyList_tmpPRIOR = CManageDirectory::get_files_inDirectory(vStrPath_Prior, "*.txt", 18);
-		_sleep(5);
+		vector<string> vClassifyList, vClassifyList_tmpPRIOR, vClassifyList_tmpPRIOR_2nd, vClassifyList_tmpALL;
+		vClassifyList_tmpPRIOR = CManageDirectory::get_files_inDirectory(vStrPath_Prior, "clsList_7*.txt", 18);
+		_sleep(3);
+		vClassifyList_tmpPRIOR_2nd = CManageDirectory::get_files_inDirectory(vStrPath_Prior, "clsList_8*.txt", 18);
 		vClassifyList_tmpALL = CManageDirectory::get_files_inDirectory(vStrPath_All, "*.txt", 18);
 
 		if (vClassifyList_tmpPRIOR.size() > 10)
@@ -169,9 +180,14 @@ int main(int argc, char** argv)
 			vClassifyList = vClassifyList_tmpPRIOR;
 			std::cout << "---------STEP Priority Process-----------" << std::endl;
 		}
-		else if (vClassifyList_tmpALL.size() > 3000)
+		else if (vClassifyList_tmpPRIOR_2nd.size() > 400)
 		{
-			int sizePorition = vClassifyList_tmpALL.size()*0.2;
+			vClassifyList = vClassifyList_tmpPRIOR_2nd;
+			std::cout << "---------STEP Priority Process 8Line-----------" << std::endl;
+		}
+		else if (vClassifyList_tmpALL.size() > 2000)
+		{
+			int sizePorition = vClassifyList_tmpALL.size() * 0.1;
 			std::cout << "---------Portion Count " + to_string(sizePorition) + "-----------" << std::endl;
 			for (int i = 0; i< sizePorition; i++)
 			{
@@ -182,6 +198,7 @@ int main(int argc, char** argv)
 			vClassifyList = vClassifyList_tmpALL;
 
 		vClassifyList_tmpPRIOR.clear();
+		vClassifyList_tmpPRIOR_2nd.clear();
 		vClassifyList_tmpALL.clear();
 
 		int nImgBatch = nBatchSize / nOverSample;
@@ -209,122 +226,148 @@ int main(int argc, char** argv)
 				string line = string(buf);
 
 				vector<string> para = CStringParse::splitString(line, ',');
-				string model_file = para[INFO_IDX::DEPLOY];
-				string trained_file = para[INFO_IDX::MODEL];
-				string mean_file = para[INFO_IDX::MEAN];
-				string label_file = para[INFO_IDX::SYNC];
-				string file = para[INFO_IDX::CLIPIMAGEPATH];
-
-				//test
-				int nFcn = model_file.rfind("_fcn.prototxt");
-				if (nFcn > 0)
+				if (para.size() >= INFO_IDX::LAST)
 				{
-					//remove(vClassifyList[i].c_str());
-					//continue;
-					classifier[clIdx].loadModel(model_file, trained_file, mean_file, label_file, true, 1, nGpuNum);
-					classifier[clIdx].setFcn(true);
-				}
-				else
-				{
-					classifier[clIdx].loadModel(model_file, trained_file, mean_file, label_file, true, nBatchSize, nGpuNum);
-					classifier[clIdx].setFcn(false);
-				}
+					string model_file = para[INFO_IDX::DEPLOY];
+					string trained_file = para[INFO_IDX::MODEL];
+					string mean_file = para[INFO_IDX::MEAN];
+					string label_file = para[INFO_IDX::SYNC];
+					string file = para[INFO_IDX::CLIPIMAGEPATH];
 
-				clock_t st;
-				clock_t et;
-				string strDisp;
-				strDisp = CConvertString::CStringToString(strCurTime) + file + " : ";
-
-				struct tm *t;
-				time_t timer;
-
-				timer = time(NULL);    // 현재 시각을 초 단위로 얻기
-				t = localtime(&timer); // 초 단위의 시간을 분리하여 구조체에 넣기
-
-				char s[15];
-
-				sprintf(s, "%04d%02d%02d%02d%02d%02d",
-					t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
-					t->tm_hour, t->tm_min, t->tm_sec
-				);
-				para[INFO_IDX::E_TIME] = string(s);
-				//std::cout << "---------- Prediction for " << file << " ----------" << std::endl;
-
-				st = clock();
-				cv::Mat img = cv::imread(file, -1);
-
-				if (img.empty())
-				{
-					inFile.close();
-					remove(vClassifyList[i].c_str());
-					std::cout << "---------- Not Exist Image " << file << " ----------" << std::endl;
-				}
-				else
-				{
-					et = clock();
-					double dAllTime = 0.0;
-					double dTime = (double)(et - st) / CLOCKS_PER_SEC;
-					dAllTime += dTime;
-					strDisp += "read(" + to_string(dTime) + "),";
-
-					//full Image;
-
-					st = clock();
-					cv::resize(img, img, cv::Size(800, 600));
-					et = clock();
-					dTime = (double)(et - st) / CLOCKS_PER_SEC;
-					dAllTime += dTime;
-					strDisp += "resize(" + to_string(dTime) + "),";
-
-					st = clock();
-
-					vector< vector<Prediction> >  predictions;
-					vector<Mat> vImg;
-					vImg.push_back(img);
-					if (classifier[clIdx].isFcn())
+					//test
+					int nFcn = model_file.rfind("_fcn.prototxt");
+					if (nFcn > 0)
 					{
-						predictions = classifier[clIdx].ClassifyFcnBatch(vImg, 1);
+						//remove(vClassifyList[i].c_str());
+						//continue;
+						classifier[clIdx].loadModel(model_file, trained_file, mean_file, label_file, true, 1, nGpuNum);
+						classifier[clIdx].setFcn(true);
 					}
 					else
 					{
-						vector<Prediction> prediction = classifier[clIdx].ClassifyOverSample(vImg[0], 1, nOverSample);
-						predictions.push_back(prediction);
+						classifier[clIdx].loadModel(model_file, trained_file, mean_file, label_file, true, nBatchSize, nGpuNum);
+						classifier[clIdx].setFcn(false);
 					}
-					et = clock();
-					dTime = (double)(et - st) / CLOCKS_PER_SEC;
-					dAllTime += dTime;
-					strDisp += "predict(" + to_string(dTime) + "),";
 
+					clock_t st;
+					clock_t et;
+					string strDisp;
+					strDisp = CConvertString::CStringToString(strCurTime) + file + " : ";
+
+					struct tm *t;
+					time_t timer;
+
+					timer = time(NULL);    // 현재 시각을 초 단위로 얻기
+					t = localtime(&timer); // 초 단위의 시간을 분리하여 구조체에 넣기
+
+					char s[15];
+
+					sprintf(s, "%04d%02d%02d%02d%02d%02d",
+						t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
+						t->tm_hour, t->tm_min, t->tm_sec
+					);
+					para[INFO_IDX::E_TIME] = string(s);
+					//std::cout << "---------- Prediction for " << file << " ----------" << std::endl;
 
 					st = clock();
-					ofstream outFile(resulstFileName, ios::out); //파일을 연다, 없으면 생성
-					vector<string> vResult;
-					for (int pi = INFO_IDX::LINE; pi < INFO_IDX::MODEL_TIME; pi++)
-						vResult.push_back(para[pi]);
+					cv::Mat img = cv::imread(file, 1);
 
-					vResult.push_back(predictions[0][0].first);
-					vResult.push_back(to_string(predictions[0][0].second));
-
-					for (int pi = INFO_IDX::MODEL_TIME; pi < INFO_IDX::LAST; pi++)
-						vResult.push_back(para[pi]);
-
-					for (int pi = 0; pi < vResult.size(); pi++)
+					int channels_img = img.channels();
+					if (channels_img != 3)
 					{
-						outFile << vResult[pi] << ',';
+						inFile.close();
+						remove(vClassifyList[i].c_str());
+						std::cout << "---------- wrong channels " << file << " ----------" << std::endl;
+						continue;
 					}
 
-					inFile.close();
-					outFile.close();
-					int ret = remove(vClassifyList[i].c_str());
 
-					et = clock();
-					dTime = (double)(et - st) / CLOCKS_PER_SEC;
-					dAllTime += dTime;
-					strDisp += "write(" + to_string(dTime) + "),";
-					strDisp += "All(" + to_string(dAllTime) + "),";
+					if (img.empty())
+					{
+						inFile.close();
+						remove(vClassifyList[i].c_str());
+						std::cout << "---------- Not Exist Image " << file << " ----------" << std::endl;
+					}
+					else
+					{
+						et = clock();
+						double dAllTime = 0.0;
+						double dTime = (double)(et - st) / CLOCKS_PER_SEC;
+						dAllTime += dTime;
+						strDisp += "read(" + to_string(dTime) + "),";
 
-					std::cout << strDisp << std::endl;
+						//full Image;
+
+						st = clock();
+
+						cv::Size mean_size;
+						mean_size.width = classifier[clIdx].getmean().cols;
+						mean_size.height = classifier[clIdx].getmean().rows;
+
+						cv::resize(img, img, mean_size);
+						et = clock();
+						dTime = (double)(et - st) / CLOCKS_PER_SEC;
+						dAllTime += dTime;
+						strDisp += "resize(" + to_string(dTime) + "),";
+
+						st = clock();
+
+						vector< vector<Prediction> >  predictions;
+						vector<Mat> vImg;
+						vImg.push_back(img);
+						if (classifier[clIdx].isFcn())
+						{
+							predictions = classifier[clIdx].ClassifyFcnBatch(vImg, 1);
+						}
+						else
+						{
+							vector<Prediction> prediction = classifier[clIdx].ClassifyOverSample(vImg[0], 1, nOverSample);
+							predictions.push_back(prediction);
+						}
+						et = clock();
+						dTime = (double)(et - st) / CLOCKS_PER_SEC;
+						dAllTime += dTime;
+						strDisp += "predict(" + to_string(dTime) + "),";
+
+
+						st = clock();
+						ofstream outFile(resulstFileName, ios::out); //파일을 연다, 없으면 생성
+						vector<string> vResult;
+						for (int pi = INFO_IDX::LINE; pi < INFO_IDX::MODEL_TIME; pi++)
+							vResult.push_back(para[pi]);
+
+						vResult.push_back(predictions[0][0].first);
+						vResult.push_back(to_string(predictions[0][0].second));
+
+						for (int pi = INFO_IDX::MODEL_TIME; pi < INFO_IDX::LAST; pi++)
+							vResult.push_back(para[pi]);
+
+						for (int pi = 0; pi < vResult.size(); pi++)
+						{
+							outFile << vResult[pi] << ',';
+						}
+
+						inFile.close();
+						outFile.close();
+						int ret = remove(vClassifyList[i].c_str());
+
+						et = clock();
+						dTime = (double)(et - st) / CLOCKS_PER_SEC;
+						dAllTime += dTime;
+						strDisp += "write(" + to_string(dTime) + "),";
+						strDisp += "All(" + to_string(dAllTime) + "),";
+
+						std::cout << strDisp << std::endl;
+					}
 				}
+				else // para info fail
+				{
+					inFile.close();
+					string strDisp = "Fail Para Info Not Correct : ";
+					std::cout << strDisp + vClassifyList[i] << std::endl;
+					int ret = remove(vClassifyList[i].c_str());
+				}
+
 			}
 
 		}

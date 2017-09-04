@@ -13,7 +13,7 @@
     <Name>convert_imageset_hdf5</Name>
     <RootNamespace>convert_imageset_hdf5</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>I:\ftpWriteAccess I:\ftpWriteAccess\measure\train.csv train I:\ftpWriteAccess\measure\train_mean.binaryproto --use_label=CD1 --width=540 --height=540 --channels=3</CommandLineArguments>
+    <CommandLineArguments>I:\ftpWriteAccess I:\ftpWriteAccess\CDOL_Measure\validation.csv validation I:\ftpWriteAccess\CDOL_Measure\validation_mean.binaryproto --use_label=CD1 --width=540 --height=540 --channels=3</CommandLineArguments>
     <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
     <IsWindowsApplication>False</IsWindowsApplication>
     <InterpreterId>{9a7a9026-48c1-4688-9d5d-e5699d47d074}</InterpreterId>

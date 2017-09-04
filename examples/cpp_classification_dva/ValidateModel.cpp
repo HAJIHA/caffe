@@ -3,6 +3,7 @@
 #include "ValidateModel.h"
 #include "ManageDirectory.h"
 
+
 void CValidateModel::InitModel(string strModelRoot, string strTrainedFile, string strImgRoot, string strTestListFile, int gpuNum, bool bIntel)
 {
 	if (bIntel)
@@ -234,6 +235,99 @@ void CValidateModel::testValidateSetIntel()
 	outFileCal << strValOutOrg;
 	outFileCal << strValOutPrd;
 }
+void CValidateModel::testValidateSetMeasure()
+{
+	std::ifstream inFile;
+	inFile.open(m_ValidateListFile);
+	if (!inFile.is_open())
+		return;
+
+	char buf[1024];
+
+	while (!inFile.getline(buf, sizeof(buf)).eof())
+	{
+		string line = string(buf);
+		vector<string> vstrline = CStringParse::splitString(line, ',');
+
+		stValSetMeasure OneSet;
+		OneSet.strPath = vstrline[0];
+		for (int i = 1; i < vstrline.size(); i++)
+			OneSet.fOrigin.push_back(atof(vstrline[i].c_str()));
+
+		m_vValidateMeasureList.push_back(OneSet);
+	}
+
+	string strHeader = "file_name,";
+	for (int i = 0; i < m_label.size(); i++)
+	{
+		strHeader += m_label[i] + "_Org,";
+	}
+	for (int i = 0; i < m_label.size(); i++)
+	{
+		strHeader += m_label[i] + "_Prd,";
+	}
+
+
+	ofstream outFile(m_strSavePredictResult, ios::out); //파일을 연다, 없으면 생성
+	ofstream outFileCal(m_strSaveValidate, ios::out);
+	outFile << strHeader + "\n";
+
+
+	const int nImgSize = m_nBatchSize / m_nOverSample;
+	vector<cv::Mat> vImg;
+	int nCnt = 0;
+	for (int i = 0; i < m_vValidateMeasureList.size(); i++)
+	{
+		clock_t st;
+		clock_t et;
+		st = clock();
+		m_vValidateMeasureList[i].strPath = m_ImgRoot + m_vValidateMeasureList[i].strPath;
+
+		cv::Mat img = cv::imread(m_vValidateMeasureList[i].strPath);
+		if (img.empty())
+		{
+			inFile.close();
+			remove(m_vValidateMeasureList[i].strPath.c_str());
+			std::cout << "---------- Not Exist Image " << m_vValidateMeasureList[i].strPath << " ----------" << std::endl;
+			continue;
+		}
+
+		cv::Size mean_size;
+		mean_size.width = m_classifier.getmean().cols;
+		mean_size.height = m_classifier.getmean().rows;
+
+		cv::resize(img, img, mean_size);
+
+		vImg.push_back(img);
+		nCnt++;
+		if (nCnt < nImgSize)
+		{
+			et = clock();
+			double dTime = (double)(et - st) / CLOCKS_PER_SEC;
+			cout << "process time one image : " + to_string(dTime) << endl;
+			continue;
+		}
+
+		///////////////////////////////////////////////////
+		vector<float> prediction = m_classifier.MeasureOverSample(vImg[0],  10);
+		vImg.clear();
+		nCnt = 0;
+		for (int m_num = 0; m_num < prediction.size(); m_num++)
+			m_vValidateMeasureList[i].fMeasure.push_back(prediction[m_num]);
+
+		string strOneLineOut;
+		strOneLineOut = m_vValidateMeasureList[i].strPath + ",";
+		for (int mnum = 0; mnum < m_label.size(); mnum++)
+			strOneLineOut += to_string(m_vValidateMeasureList[i].fOrigin[mnum]) + ",";
+		for (int mnum = 0; mnum < m_label.size(); mnum++)
+			strOneLineOut += to_string(m_vValidateMeasureList[i].fMeasure[mnum]) + ",";
+
+		outFile << strOneLineOut + "\n";
+		et = clock();
+		double dTime = (double)(et - st) / CLOCKS_PER_SEC;
+		cout << "process time one image : " + to_string(dTime) << endl;
+	}
+}
 
 void CValidateModel::testValidateSet()
 {
@@ -424,6 +518,12 @@ void CValidateModel::testValidateSet()
 
 	outFileCal << strValOutOrg;
 	outFileCal << strValOutPrd;
+}
+
+CValidateModel::CValidateModel(string strModelRoot, string strTrainedFile, string strImgRoot, string strTestListFile, int gpuNum, string strType)
+{
+	InitModel(strModelRoot, strTrainedFile, strImgRoot, strTestListFile, gpuNum, false);
+	testValidateSetMeasure();
 }
 
 CValidateModel::CValidateModel(string strModelRoot, string strTrainedFile, string strImgRoot, string strTestListFile, int gpuNum)

@@ -77,7 +77,7 @@ int main(int argc, char** argv) {
   size_t pos;
   int label;
   while (std::getline(infile, line)) {
-    pos = line.find_last_of(' ');
+    pos = line.find_last_of(',');
     label = atoi(line.substr(pos + 1).c_str());
     lines.push_back(std::make_pair(line.substr(0, pos), label));
   }
