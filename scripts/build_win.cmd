@@ -10,7 +10,7 @@ if DEFINED APPVEYOR (
     if NOT DEFINED CMAKE_CONFIG set CMAKE_CONFIG=Release
     if NOT DEFINED USE_NCCL set USE_NCCL=0
     if NOT DEFINED CMAKE_BUILD_SHARED_LIBS set CMAKE_BUILD_SHARED_LIBS=0
-    if NOT DEFINED PYTHON_VERSION set PYTHON_VERSION=2
+    if NOT DEFINED PYTHON_VERSION set PYTHON_VERSION=3
     if NOT DEFINED BUILD_PYTHON set BUILD_PYTHON=1
     if NOT DEFINED BUILD_PYTHON_LAYER set BUILD_PYTHON_LAYER=1
     if NOT DEFINED BUILD_MATLAB set BUILD_MATLAB=0
@@ -21,11 +21,11 @@ if DEFINED APPVEYOR (
 
     :: Set python 2.7 with conda as the default python
     if !PYTHON_VERSION! EQU 2 (
-        set CONDA_ROOT=C:\Miniconda-x64
+        set CONDA_ROOT=C:\Anaconda2
     )
     :: Set python 3.5 with conda as the default python
     if !PYTHON_VERSION! EQU 3 (
-        set CONDA_ROOT=C:\Miniconda35-x64
+        set CONDA_ROOT=C:\Anaconda3
     )
     set PATH=!CONDA_ROOT!;!CONDA_ROOT!\Scripts;!CONDA_ROOT!\Library\bin;!PATH!
 
@@ -49,7 +49,7 @@ if DEFINED APPVEYOR (
         call %~dp0\appveyor\appveyor_install_cuda.cmd
         set CPU_ONLY=0
         set RUN_TESTS=0
-        set USE_NCCL=1
+        set USE_NCCL=0
     ) else (
         set CPU_ONLY=1
     )
@@ -76,11 +76,11 @@ if DEFINED APPVEYOR (
     :: Change to Debug to build Debug. This is only relevant for the Ninja generator the Visual Studio generator will generate both Debug and Release configs
     if NOT DEFINED CMAKE_CONFIG set CMAKE_CONFIG=Release
     :: Set to 1 to use NCCL
-    if NOT DEFINED USE_NCCL set USE_NCCL=1
+    if NOT DEFINED USE_NCCL set USE_NCCL=0
     :: Change to 1 to build a caffe.dll
     if NOT DEFINED CMAKE_BUILD_SHARED_LIBS set CMAKE_BUILD_SHARED_LIBS=0
     :: Change to 3 if using python 3.5 (only 2.7 and 3.5 are supported)
-    if NOT DEFINED PYTHON_VERSION set PYTHON_VERSION=2
+    if NOT DEFINED PYTHON_VERSION set PYTHON_VERSION=3
     :: Change these options for your needs.
     if NOT DEFINED BUILD_PYTHON set BUILD_PYTHON=1
     if NOT DEFINED BUILD_PYTHON_LAYER set BUILD_PYTHON_LAYER=1
