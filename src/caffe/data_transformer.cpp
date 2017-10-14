@@ -566,6 +566,10 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
 	{
 		CHECK_EQ(imgHeightIn, height);
 		CHECK_EQ(imgWidthIn, width);
+		if (has_mean_file)
+		{
+			cv::resize(meanImg, meanImg, cv_img.size());
+		}
 	}
 
 	// perspective ----------------------------------------------------------
@@ -808,6 +812,11 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
 	cv::Mat sample_normalized;
 	if (has_mean_file) 
 	{
+		if (sample_float.size != meanImg.size)
+		{
+			LOG(WARNING) << "mean file size warning" << meanImg.cols << "," << meanImg.rows;
+			cv::resize(meanImg, meanImg, sample_float.size());
+		}
 		cv::subtract(sample_float, meanImg, sample_normalized);
 	}
 	else

@@ -25,7 +25,7 @@ if DEFINED APPVEYOR (
     )
     :: Set python 3.5 with conda as the default python
     if !PYTHON_VERSION! EQU 3 (
-        set CONDA_ROOT=C:\Anaconda3
+        set CONDA_ROOT=C:\Anaconda3\envs\py35
     )
     set PATH=!CONDA_ROOT!;!CONDA_ROOT!\Scripts;!CONDA_ROOT!\Library\bin;!PATH!
 
