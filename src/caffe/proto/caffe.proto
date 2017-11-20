@@ -839,6 +839,8 @@ message ImageDataParameter {
   // data.
   optional bool mirror = 6 [default = false];
   optional string root_folder = 12 [default = ""];
+//  optional bool balance_data = 13 [default = false];
+//  optional float balance_data_max_oversample_ratio = 14 [default = 10.0];
 }
 
 message InfogainLossParameter {

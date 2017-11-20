@@ -577,7 +577,8 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
 	rng = cv::RNG(rIndex);
 	float max_perpective_ratio = param_.max_perspective_ratio();
 	float perpective_ratio = rng.uniform(float(1.0), max_perpective_ratio);
-	if (perpective_ratio != 1.0)
+	int apply_perspective = Rand(2);
+	if (perpective_ratio != 1.0 && apply_perspective)
 	{
    		int offsetPerspective = static_cast<int>(abs(perpective_ratio * crop_size - crop_size));
 		cv::Point2f fPtOrg[4] = { cv::Point2f(0,0), cv::Point2f(crop_size,0)
@@ -612,7 +613,8 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
 
 	// Rotation -------------------------------------------------------------
 	double rotation_degree = 0;
-	if (rotation_angle_interval != 0) {
+	int apply_RotationSelect = Rand(2);
+	if (rotation_angle_interval != 0 && apply_RotationSelect) {
 		cv::Mat dst;
 		int interval = 360 / rotation_angle_interval;
 		int apply_rotation = Rand(interval);
@@ -692,8 +694,8 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& img,
 	// To change saturation, we need to convert the image to HSV format first,
 	// the change S channgel and convert the image back to BGR format.
 	float fMaxColorJitter = param_.max_color_jitter();
-
-	if (fMaxColorJitter != 0.0 && cv_img.channels() == 3)
+	int apply_colorjitter = Rand(2);
+	if (fMaxColorJitter != 0.0 && cv_img.channels() == 3 && apply_colorjitter)
 	{
 		rIndex = Rand(0X0FFFFFFF);
 		rng = cv::RNG(rIndex);
